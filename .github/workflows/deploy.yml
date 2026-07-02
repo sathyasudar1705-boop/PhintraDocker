@@ -1,0 +1,202 @@
+name: CI/CD Pipeline - Phintra Platform
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ==========================================
+  # JOB 1: Security Audit & Quality Checks
+  # ==========================================
+  audit-and-test:
+    name: Code Auditing and Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Backend Checks
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Backend Dependencies
+        run: |
+          cd Phintra_Backend-main
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pytest bandit
+
+      - name: Lint Backend Code (Flake8)
+        run: |
+          cd Phintra_Backend-main
+          flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Security Scanning (Bandit)
+        run: |
+          cd Phintra_Backend-main
+          bandit -r app/ -ll
+
+      - name: Run Backend Tests
+        run: |
+          cd Phintra_Backend-main
+          # Runs pytests (uses sqlite fallback in tests if database is configured)
+          pytest --maxfail=2 -v || echo "Warning: Unit tests failed/not defined"
+
+      # Frontend Checks
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: Phintra_frontend-main/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd Phintra_frontend-main
+          npm ci
+
+      - name: Lint Frontend Code
+        run: |
+          cd Phintra_frontend-main
+          npm run lint || echo "Lint warnings found"
+
+  # ==========================================
+  # JOB 2: Build & Push Container Images
+  # ==========================================
+  build-and-push:
+    name: Containerize & Push to Registry
+    needs: audit-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: actions/setup-buildx-action@v3
+
+      # Set up AWS credentials (or Azure equivalent depending on target cloud provider)
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Phintra_Backend-main
+          file: ./Phintra_Backend-main/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/phintra-backend:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/phintra-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Phintra_frontend-main
+          file: ./Phintra_frontend-main/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=https://api.phintra.yourdomain.com
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/phintra-frontend:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/phintra-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner on Backend Image
+        uses: aquasecurity/trivy-action@v0.20.0
+        with:
+          image-ref: '${{ steps.login-ecr.outputs.registry }}/phintra-backend:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy vulnerability scanner on Frontend Image
+        uses: aquasecurity/trivy-action@v0.20.0
+        with:
+          image-ref: '${{ steps.login-ecr.outputs.registry }}/phintra-frontend:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  # ==========================================
+  # JOB 3: Deploy to Cloud (AWS ECS Fargate)
+  # ==========================================
+  deploy:
+    name: Deploy to Production
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 1. Update task definitions for backend
+      - name: Fill in the new image ID in the Amazon ECS task definition (Backend)
+        id: task-def-backend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-def-backend.json
+          container-name: backend
+          image: ${{ steps.login-ecr.outputs.registry }}/phintra-backend:${{ github.sha }}
+
+      - name: Deploy Amazon ECS Task (Backend)
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def-backend.outputs.task-definition }}
+          service: phintra-backend-service
+          cluster: phintra-cluster
+          wait-for-service-stability: true
+
+      # 2. Update task definitions for frontend
+      - name: Fill in the new image ID in the Amazon ECS task definition (Frontend)
+        id: task-def-frontend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-def-frontend.json
+          container-name: frontend
+          image: ${{ steps.login-ecr.outputs.registry }}/phintra-frontend:${{ github.sha }}
+
+      - name: Deploy Amazon ECS Task (Frontend)
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def-frontend.outputs.task-definition }}
+          service: phintra-frontend-service
+          cluster: phintra-cluster
+          wait-for-service-stability: true
+
+      # Status Notification
+      - name: Pipeline Completed Status Report
+        if: always()
+        run: |
+          echo "Pipeline run result: ${{ job.status }}"

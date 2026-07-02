@@ -1,0 +1,25 @@
+# Ignore local git files
+.git
+.github
+
+# Ignore local packages and distribution outputs
+node_modules/
+dist/
+build/
+coverage/
+
+# Ignore environment configuration files
+.env
+.env.*
+!.env.example
+
+# Ignore system files and logs
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore IDE files
+.idea/
+.vscode/

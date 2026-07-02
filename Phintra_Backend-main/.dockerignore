@@ -1,0 +1,30 @@
+# Ignore local git directories
+.git
+.github
+
+# Ignore Python dependencies and virtual environments
+venv/
+.venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Ignore Python bytecode compilation caches
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Ignore local databases and sqlite storage files
+*.db
+*.sqlite3
+
+# Ignore log outputs
+*.log
+uvicorn.log
+
+# Ignore IDE specific configuration directories
+.idea/
+.vscode/
+.DS_Store

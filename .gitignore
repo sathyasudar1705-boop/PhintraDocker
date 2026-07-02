@@ -1,0 +1,47 @@
+# Environments
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependency directories
+node_modules/
+jspm_packages/
+web_modules/
+venv/
+.venv/
+env/
+ENV/
+pyvenv.cfg
+pip-selfcheck.json
+
+# Build and distribution
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
