@@ -25,6 +25,7 @@ export const AppProvider = ({ children }) => {
     currentUser, 
     login, 
     employeeLogin,
+    microsoftLogin,
     register, 
     selectRole, 
     logout,
@@ -827,7 +828,8 @@ export const AppProvider = ({ children }) => {
       reportCampaignEmail,
       sendSupportMessage,
       sendAdminReply,
-      fetchData
+      fetchData,
+      microsoftLogin
     }}>
       {children}
     </AppContext.Provider>
