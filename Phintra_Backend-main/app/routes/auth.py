@@ -864,33 +864,50 @@ def microsoft_auth(payload: MicrosoftAuthRequest, db: Session = Depends(get_db))
             detail=f"Failed to auto-register new user: {str(err)}"
         )
 
-class MicrosoftLoginRequest(BaseModel):
-    email: Optional[str] = None
-    token: Optional[str] = None
+@router.get("/microsoft-config")
+def get_microsoft_config():
+    from app.config import settings
+    return {
+        "client_id": settings.MICROSOFT_CLIENT_ID,
+        "tenant_id": settings.MICROSOFT_TENANT_ID,
+        "redirect_uri": settings.MICROSOFT_REDIRECT_URI,
+        "authorization_endpoint": f"https://login.microsoftonline.com/{settings.MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize"
+    }
 
-@router.post("/auth/microsoft/login")
-def microsoft_login(payload: MicrosoftLoginRequest, db: Session = Depends(get_db)):
-    """Authenticate via Microsoft Entra ID. Verify email presence, active status, and issue Phintra JWT."""
+class MicrosoftLoginPKCERequest(BaseModel):
+    access_token: str
+    id_token: str
+    portal_type: str
+
+@router.post("/microsoft-login")
+def microsoft_login_pkce(payload: MicrosoftLoginPKCERequest, db: Session = Depends(get_db)):
     import requests
     from app.config import settings
     from app.utils.security import create_access_token
     from app.models.employee import Employee
     from app.models.department import Department
     from app.models.audit_log import AuditLog
+    import uuid
 
-    microsoft_email = payload.email
-    access_token = payload.token
-
-    # Verify the Microsoft token if provided
-    if access_token:
-        graph_url = "https://graph.microsoft.com/v1.0/me"
-        headers = {"Authorization": f"Bearer {access_token}"}
+    # 1. Fetch user from Microsoft Graph API using the access_token
+    graph_url = "https://graph.microsoft.com/v1.0/me"
+    headers = {"Authorization": f"Bearer {payload.access_token}"}
+    try:
         profile_res = requests.get(graph_url, headers=headers)
-        if profile_res.status_code == 200:
-            profile = profile_res.json()
-            token_email = profile.get("mail") or profile.get("userPrincipalName")
-            if token_email:
-                microsoft_email = token_email
+        if profile_res.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Failed to authenticate access token with Microsoft Graph API."
+            )
+        profile = profile_res.json()
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Microsoft Graph API connection failed: {str(err)}"
+        )
+
+    microsoft_email = profile.get("mail") or profile.get("userPrincipalName")
+    display_name = profile.get("displayName") or "Microsoft User"
 
     if not microsoft_email:
         raise HTTPException(
@@ -900,53 +917,64 @@ def microsoft_login(payload: MicrosoftLoginRequest, db: Session = Depends(get_db
 
     email = microsoft_email.strip().lower()
 
-    # Query the users table for the email (Admin/Manager)
+    # 2. Query users table (case-insensitive email matching)
     user = db.query(User).filter(sa.func.lower(User.email) == email).first()
     if user:
         if not user.is_active:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your account is inactive. Please contact admin."
             )
         
-        phintra_token = create_access_token(data={"sub": user.email, "role": user.role})
+        # Generate Phintra JWT with specified claims: sub, user_id, role, email
+        phintra_token = create_access_token(data={
+            "sub": user.email,
+            "user_id": str(user.id),
+            "role": user.role,
+            "email": user.email
+        })
         
-        audit = AuditLog(user_id=user.id, action="Microsoft Login", details=f"User {user.email} logged in via Microsoft Entra ID.")
+        audit = AuditLog(user_id=user.id, action="Microsoft Login", details=f"User {user.email} logged in via Microsoft Entra ID PKCE.")
         db.add(audit)
         db.commit()
+        
+        redirect_path = "/admin/dashboard" if user.role in ["Admin", "Security Administrator", "Security Manager", "Manager"] else "/employee/dashboard"
         
         return {
             "access_token": phintra_token,
             "token_type": "bearer",
             "role": user.role,
-            "redirect_path": "/admin/dashboard",
+            "redirect_path": redirect_path,
             "user": {
                 "id": str(user.id),
-                "name": user.name or "Admin",
+                "name": user.name or display_name,
                 "email": user.email,
                 "role": user.role
             }
         }
 
-    # Query the employees table for the email (Employee)
+    # 3. Query employees table (case-insensitive email matching)
     emp = db.query(Employee).filter(sa.func.lower(Employee.email) == email).first()
     if emp:
         if not emp.is_active:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your account is inactive. Please contact admin."
             )
         
+        # Generate Phintra JWT with sub, user_id, role, email, employee_id
         phintra_token = create_access_token(data={
             "sub": emp.email,
+            "user_id": str(emp.id),
             "role": "Employee",
+            "email": emp.email,
             "employee_id": str(emp.id)
         })
         
         dept = db.query(Department).filter(Department.id == emp.department_id).first()
         dept_name = dept.name if dept else "Unknown"
 
-        audit = AuditLog(action="Employee Microsoft Login", details=f"Employee {emp.email} logged in via Microsoft Entra ID.")
+        audit = AuditLog(action="Employee Microsoft Login", details=f"Employee {emp.email} logged in via Microsoft Entra ID PKCE.")
         db.add(audit)
         db.commit()
 
@@ -956,7 +984,7 @@ def microsoft_login(payload: MicrosoftLoginRequest, db: Session = Depends(get_db
             "role": "Employee",
             "redirect_path": "/employee/dashboard",
             "employee": {
-                "name": emp.name or f"{emp.first_name} {emp.last_name}".strip() or "Employee",
+                "name": emp.name or f"{emp.first_name} {emp.last_name}".strip() or display_name,
                 "email": emp.email,
                 "department": dept_name,
                 "role": "Employee",
@@ -964,9 +992,106 @@ def microsoft_login(payload: MicrosoftLoginRequest, db: Session = Depends(get_db
             }
         }
 
-    # Email not found
+    # 4. If email does not exist, check auto-registration settings
+    if settings.ENABLE_MICROSOFT_AUTO_REGISTRATION:
+        if settings.TEST_ADMIN_EMAIL and email == settings.TEST_ADMIN_EMAIL.strip().lower():
+            # Auto-register as Admin
+            new_user = User(
+                email=email,
+                hashed_password="MICROSOFT_SSO_ONLY",
+                role="Admin",
+                is_active=True,
+                name=display_name
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+
+            phintra_token = create_access_token(data={
+                "sub": new_user.email,
+                "user_id": str(new_user.id),
+                "role": new_user.role,
+                "email": new_user.email
+            })
+
+            audit = AuditLog(user_id=new_user.id, action="Microsoft Autoregister", details=f"New Admin {new_user.email} registered and logged in via Microsoft Entra ID PKCE.")
+            db.add(audit)
+            db.commit()
+
+            return {
+                "access_token": phintra_token,
+                "token_type": "bearer",
+                "role": new_user.role,
+                "redirect_path": "/admin/dashboard",
+                "user": {
+                    "id": str(new_user.id),
+                    "name": new_user.name or display_name,
+                    "email": new_user.email,
+                    "role": new_user.role
+                }
+            }
+
+        elif settings.TEST_EMPLOYEE_EMAIL and email == settings.TEST_EMPLOYEE_EMAIL.strip().lower():
+            # Auto-register as Employee
+            from app.models.company import Company
+            company = db.query(Company).first()
+            if not company:
+                company = Company(name="Test Company")
+                db.add(company)
+                db.commit()
+                db.refresh(company)
+
+            # Find or create a default department
+            dept = db.query(Department).filter(Department.company_id == company.id).first()
+            if not dept:
+                dept = Department(name="IT Security", company_id=company.id)
+                db.add(dept)
+                db.commit()
+                db.refresh(dept)
+
+            # Create Employee record
+            new_emp = Employee(
+                email=email,
+                name=display_name,
+                hashed_password="MICROSOFT_SSO_ONLY",
+                role="Employee",
+                is_active=True,
+                company_id=company.id,
+                department_id=dept.id
+            )
+            db.add(new_emp)
+            db.commit()
+            db.refresh(new_emp)
+
+            phintra_token = create_access_token(data={
+                "sub": new_emp.email,
+                "user_id": str(new_emp.id),
+                "role": "Employee",
+                "email": new_emp.email,
+                "employee_id": str(new_emp.id)
+            })
+
+            audit = AuditLog(action="Employee Microsoft Autoregister", details=f"New Employee {new_emp.email} registered and logged in via Microsoft Entra ID PKCE.")
+            db.add(audit)
+            db.commit()
+
+            return {
+                "access_token": phintra_token,
+                "token_type": "bearer",
+                "role": "Employee",
+                "redirect_path": "/employee/dashboard",
+                "employee": {
+                    "name": new_emp.name or display_name,
+                    "email": new_emp.email,
+                    "department": dept.name,
+                    "role": "Employee",
+                    "employee_id": str(new_emp.id)
+                }
+            }
+
+    # Not registered
     raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
+        status_code=status.HTTP_403_FORBIDDEN,
         detail="Your account is not registered in Phintra."
     )
 

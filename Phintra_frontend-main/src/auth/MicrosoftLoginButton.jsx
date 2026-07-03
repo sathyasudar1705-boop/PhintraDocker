@@ -1,106 +1,67 @@
 import React, { useState } from 'react';
-import { useMsal } from '@azure/msal-react';
-import { loginRequest } from './msalConfig';
-import { useAppContext } from '../context/AppContext';
+import api from '../services/api';
+import { generateCodeVerifier, generateCodeChallenge } from '../utils/pkce';
 
 export const MicrosoftLoginButton = ({ onError }) => {
-  const { instance, inProgress } = useMsal();
-  const { microsoftLogin } = useAppContext();
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (inProgress !== "none" || loading) return;
+    if (loading) return;
     setLoading(true);
     if (onError) onError('');
 
     try {
-      // Clear any stuck MSAL states from session/local storage
-      const storageKeys = [...Object.keys(sessionStorage), ...Object.keys(localStorage)];
-      storageKeys.forEach(key => {
-        if (key.startsWith('msal.')) {
-          sessionStorage.removeItem(key);
-          localStorage.removeItem(key);
-        }
-      });
+      // 1. Fetch Microsoft OAuth configuration from backend
+      const response = await api.get('/auth/microsoft-config');
+      const { client_id, tenant_id, redirect_uri, authorization_endpoint } = response.data;
 
-      // Save configurations for the static popup redirect page to read
-      localStorage.setItem('sso_client_id', import.meta.env.VITE_MICROSOFT_CLIENT_ID);
-      localStorage.setItem('sso_tenant_id', import.meta.env.VITE_MICROSOFT_TENANT_ID);
+      if (!client_id || !tenant_id) {
+        throw new Error('Microsoft login parameters are not configured on the server.');
+      }
 
-      const portalType = window.location.pathname.includes('/admin') ? 'admin' : 'employee';
-      localStorage.setItem('sso_portal_type', portalType);
+      // 2. Generate PKCE params
+      const codeVerifier = generateCodeVerifier();
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-      console.log("Microsoft popup started");
-
-      // Open MSAL authentication popup and await the result
-      const result = await instance.loginPopup({
-        ...loginRequest,
-        redirectUri: import.meta.env.VITE_MICROSOFT_REDIRECT_URI || "http://localhost:5173/msal-popup.html"
-      });
+      // 3. Store params and portal context in sessionStorage
+      sessionStorage.setItem('pkce_code_verifier', codeVerifier);
       
-      console.log("Microsoft popup result", result);
+      const portalType = window.location.pathname.includes('/admin') ? 'admin' : 'employee';
+      sessionStorage.setItem('sso_portal_type', portalType);
 
-      const account = result?.account;
-      if (!account) {
-        throw new Error("No account returned from Microsoft sign-in.");
-      }
+      // Generate random state
+      const randomState = Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem('pkce_state', randomState);
 
-      instance.setActiveAccount(account);
+      // 4. Construct Microsoft Authorization URL
+      const queryParams = new URLSearchParams({
+        client_id: client_id,
+        response_type: 'code',
+        redirect_uri: redirect_uri || 'http://localhost:5173/auth/microsoft/callback',
+        response_mode: 'query',
+        scope: 'openid profile email User.Read',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        state: randomState
+      });
 
-      const microsoftEmail = account.username || result.idTokenClaims?.email || result.idTokenClaims?.preferred_username;
-      if (!microsoftEmail) {
-        throw new Error("Could not extract email address from your Microsoft profile.");
-      }
+      const authUrl = `${authorization_endpoint}?${queryParams.toString()}`;
 
-      console.log("Microsoft email", microsoftEmail);
-
-      // Call backend validation via context
-      const loginResult = await microsoftLogin(microsoftEmail, result.idToken, portalType);
-
-      console.log("Backend login response", loginResult);
-
-      // Clean up temporary local storage items
-      localStorage.removeItem('sso_client_id');
-      localStorage.removeItem('sso_tenant_id');
-      localStorage.removeItem('sso_portal_type');
-
-      if (loginResult.success && loginResult.redirect_path) {
-        let targetPath = loginResult.redirect_path;
-        if (portalType === 'employee' || targetPath === '/employee/dashboard' || targetPath === '/user/dashboard') {
-          targetPath = '/user/dashboard';
-        }
-        window.location.href = targetPath;
-      } else {
-        throw new Error(loginResult.message || 'Verification failed');
-      }
+      // 5. Redirect browser to Microsoft Online
+      window.location.href = authUrl;
     } catch (err) {
-      console.error("Microsoft login error details:", err);
+      console.error('Microsoft login redirection failed:', err);
       setLoading(false);
-      localStorage.removeItem('sso_client_id');
-      localStorage.removeItem('sso_tenant_id');
-      localStorage.removeItem('sso_portal_type');
-
-      // Specific cancellation messages based on MSAL error codes/messages
-      const isCancelled = 
-        err.name === 'BrowserAuthError' && 
-        (err.errorCode === 'user_cancelled' || err.message?.includes('user_cancelled'));
-
-      if (isCancelled) {
-        if (onError) onError('Microsoft login was cancelled.');
-      } else {
-        const errorMsg = err.response?.data?.detail || err.message || 'Microsoft login failed. Please try again.';
-        if (onError) onError(errorMsg);
-      }
+      const errMsg = err.response?.data?.detail || err.message || 'Microsoft login failed. Please try again.';
+      if (onError) onError(errMsg);
     }
   };
-
-  const isInteracting = inProgress !== "none" || loading;
 
   return (
     <button
       type="button"
       onClick={handleLogin}
-      disabled={isInteracting}
+      disabled={loading}
       className="auth-sso-btn"
       style={{
         width: '100%',
@@ -111,7 +72,7 @@ export const MicrosoftLoginButton = ({ onError }) => {
         color: '#334155',
         fontSize: '14.5px',
         fontWeight: '700',
-        cursor: isInteracting ? 'not-allowed' : 'pointer',
+        cursor: loading ? 'not-allowed' : 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -127,7 +88,7 @@ export const MicrosoftLoginButton = ({ onError }) => {
         <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
         <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
       </svg>
-      {isInteracting ? "Connecting to Microsoft..." : "Continue with Microsoft"}
+      {loading ? "Connecting to Microsoft..." : "Continue with Microsoft"}
     </button>
   );
 };

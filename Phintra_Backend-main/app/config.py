@@ -25,5 +25,10 @@ class Settings(BaseSettings):
     MICROSOFT_CLIENT_SECRET: str = os.getenv("MICROSOFT_CLIENT_SECRET", "")
     MICROSOFT_TENANT_ID: str = os.getenv("MICROSOFT_TENANT_ID", "common")
     MICROSOFT_REDIRECT_URI: str = os.getenv("MICROSOFT_REDIRECT_URI", "")
+    
+    ENABLE_MICROSOFT_AUTO_REGISTRATION: bool = os.getenv("ENABLE_MICROSOFT_AUTO_REGISTRATION", "false").lower() in ("true", "1", "yes")
+    TEST_ADMIN_EMAIL: str = os.getenv("TEST_ADMIN_EMAIL", "")
+    TEST_EMPLOYEE_EMAIL: str = os.getenv("TEST_EMPLOYEE_EMAIL", "")
+
 
 settings = Settings()

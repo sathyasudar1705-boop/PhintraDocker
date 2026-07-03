@@ -13,6 +13,7 @@ import Login from '../pages/auth/Login';
 import EmployeeLogin from '../pages/auth/EmployeeLogin';
 import Register from '../pages/auth/Register';
 import ForgotPassword from '../pages/auth/ForgotPassword';
+import MicrosoftCallback from '../pages/auth/MicrosoftCallback';
 
 // Admin Portal Pages
 import Dashboard from '../pages/admin/Dashboard';
@@ -85,7 +86,8 @@ const AppRoutes = () => {
         {/* Public Landing Page for Phishing click tracking */}
         <Route path="/report/:track_id" element={<ReportLandingPage />} />
         
-
+        {/* Public Microsoft OAuth callback */}
+        <Route path="/auth/microsoft/callback" element={<MicrosoftCallback />} />
 
         {/* 1. Auth Routing */}
         <Route element={<AuthLayout />}>

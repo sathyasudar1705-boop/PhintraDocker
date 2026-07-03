@@ -364,19 +364,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const microsoftLogin = async (email, microsoftToken, portalType) => {
+  const microsoftLogin = async (accessToken, idToken, portalType) => {
     try {
-      console.log("[DEBUG] Microsoft email extracted:", email);
-      const response = await api.post('/auth/microsoft', { id_token: microsoftToken });
-      
-      console.log("[DEBUG] Backend response status:", response.status);
-      console.log("[DEBUG] Backend response keys:", Object.keys(response.data));
+      const response = await api.post('/auth/microsoft-login', {
+        access_token: accessToken,
+        id_token: idToken,
+        portal_type: portalType
+      });
       
       const { access_token, role, user, employee, redirect_path } = response.data;
       
-      console.log("[DEBUG] Backend response - role:", role);
-      console.log("[DEBUG] Backend response - redirect_path:", redirect_path);
-
       if (portalType === 'admin') {
         const mappedRole = mapBackendRoleToFrontend(role);
         const adminUserData = {

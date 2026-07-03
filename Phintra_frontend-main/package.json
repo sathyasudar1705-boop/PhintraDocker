@@ -10,8 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@azure/msal-browser": "^5.15.0",
-    "@azure/msal-react": "^5.5.0",
     "@tailwindcss/vite": "^4.3.0",
     "axios": "^1.16.1",
     "framer-motion": "^12.40.0",
