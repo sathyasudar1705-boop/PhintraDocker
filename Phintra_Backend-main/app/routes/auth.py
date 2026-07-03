@@ -916,6 +916,7 @@ def microsoft_login_pkce(payload: MicrosoftLoginPKCERequest, db: Session = Depen
         )
 
     email = microsoft_email.strip().lower()
+    print(f"[SSO LOGIN ATTEMPT] Attempted Microsoft login with email: {email}")
 
     # 2. Query users table (case-insensitive email matching)
     user = db.query(User).filter(sa.func.lower(User.email) == email).first()
@@ -947,7 +948,7 @@ def microsoft_login_pkce(payload: MicrosoftLoginPKCERequest, db: Session = Depen
             "redirect_path": redirect_path,
             "user": {
                 "id": str(user.id),
-                "name": user.name or display_name,
+                "name": display_name,
                 "email": user.email,
                 "role": user.role
             }
@@ -1000,8 +1001,7 @@ def microsoft_login_pkce(payload: MicrosoftLoginPKCERequest, db: Session = Depen
                 email=email,
                 hashed_password="MICROSOFT_SSO_ONLY",
                 role="Admin",
-                is_active=True,
-                name=display_name
+                is_active=True
             )
             db.add(new_user)
             db.commit()
@@ -1025,7 +1025,7 @@ def microsoft_login_pkce(payload: MicrosoftLoginPKCERequest, db: Session = Depen
                 "redirect_path": "/admin/dashboard",
                 "user": {
                     "id": str(new_user.id),
-                    "name": new_user.name or display_name,
+                    "name": display_name,
                     "email": new_user.email,
                     "role": new_user.role
                 }
