@@ -21,10 +21,11 @@ def get_employee_thread(
     """Retrieve message history for the currently logged-in employee."""
     emp = db.query(Employee).filter(Employee.id == current_user.id).first()
     if not emp:
-        # Fallback to check by email if mock user id does not align directly
         emp = db.query(Employee).filter(Employee.email == current_user.email).first()
-        if not emp:
-            raise HTTPException(status_code=404, detail="Employee profile not found")
+    if not emp and current_user.role in ["Admin", "admin", "Security Administrator", "Security Manager", "Manager"]:
+        emp = db.query(Employee).filter(Employee.admin_id == current_user.id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
 
     if not emp.admin_id:
         raise HTTPException(status_code=400, detail="No security administrator is assigned to your account.")
@@ -55,8 +56,10 @@ def send_employee_message(
     emp = db.query(Employee).filter(Employee.id == current_user.id).first()
     if not emp:
         emp = db.query(Employee).filter(Employee.email == current_user.email).first()
-        if not emp:
-            raise HTTPException(status_code=404, detail="Employee profile not found")
+    if not emp and current_user.role in ["Admin", "admin", "Security Administrator", "Security Manager", "Manager"]:
+        emp = db.query(Employee).filter(Employee.admin_id == current_user.id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
 
     if not emp.admin_id:
         raise HTTPException(status_code=400, detail="No security administrator is assigned to your account.")

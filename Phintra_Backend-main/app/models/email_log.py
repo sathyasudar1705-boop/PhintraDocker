@@ -15,7 +15,10 @@ class EmailLog(Base):
     status = Column(String, nullable=False) # Sent, Failed
     error_message = Column(String, nullable=True)
     employee_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    sender_email = Column(String, nullable=True)
+    sender_display_name = Column(String, nullable=True)
     sent_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 
 class ThreatFeed(Base):

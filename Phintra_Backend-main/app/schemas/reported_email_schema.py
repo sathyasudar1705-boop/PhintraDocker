@@ -5,8 +5,8 @@ from pydantic import BaseModel, Field, EmailStr
 
 class ReportedEmailBase(BaseModel):
     employee_id: UUID
-    employee_name: str
-    employee_email: str
+    employee_name: Optional[str] = None
+    employee_email: Optional[str] = None
     campaign_id: Optional[UUID] = None
     campaign_name: Optional[str] = None
     email_subject: str
@@ -15,6 +15,7 @@ class ReportedEmailBase(BaseModel):
     threat_score: int
     report_reason: str
     report_status: Optional[str] = "Pending"
+
 
 class ReportedEmailCreate(ReportedEmailBase):
     pass
@@ -33,7 +34,7 @@ class ReportedEmailUpdate(BaseModel):
     reviewed_at: Optional[datetime] = None
     reviewed_by: Optional[UUID] = None
 
-class GmailReportEmailCreate(BaseModel):
+class OutlookReportEmailCreate(BaseModel):
     subject: str
     sender: str
     body: Optional[str] = None
@@ -47,7 +48,13 @@ class GmailReportEmailCreate(BaseModel):
     email_body: Optional[str] = None
     reported_by: Optional[UUID] = None
 
-class GmailAdminMessageCreate(BaseModel):
+# Backward-compatibility alias
+GmailReportEmailCreate = OutlookReportEmailCreate
+
+class OutlookAdminMessageCreate(BaseModel):
     employee_email: EmailStr
     report_id: UUID
     message: str
+
+# Backward-compatibility alias
+GmailAdminMessageCreate = OutlookAdminMessageCreate

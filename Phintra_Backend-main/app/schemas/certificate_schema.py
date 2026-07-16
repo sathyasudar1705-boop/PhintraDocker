@@ -75,7 +75,7 @@ class ReportedEmailCreate(BaseModel):
     email_body: Optional[str] = None
     report_reason: Optional[str] = None
 
-class GmailReportEmailCreate(BaseModel):
+class OutlookReportEmailCreate(BaseModel):
     subject: str
     sender: str
     body: Optional[str] = None
@@ -90,6 +90,9 @@ class GmailReportEmailCreate(BaseModel):
     email_body: Optional[str] = None
     reported_by: Optional[UUID] = None
 
+# Backward-compatibility alias
+GmailReportEmailCreate = OutlookReportEmailCreate
+
 class ReportedEmailUpdate(BaseModel):
     status: str # Pending, Verified Phish, Safe
 
@@ -99,10 +102,13 @@ class ReportedEmailStatusUpdate(BaseModel):
 class ReportedEmailReview(BaseModel):
     report_status: str # Pending, Safe, Suspicious, Closed
 
-class GmailAdminMessageCreate(BaseModel):
+class OutlookAdminMessageCreate(BaseModel):
     employee_email: EmailStr
     report_id: UUID
     message: str
+
+# Backward-compatibility alias
+GmailAdminMessageCreate = OutlookAdminMessageCreate
 
 class ReportedEmailResponse(ReportedEmailBase):
     id: UUID

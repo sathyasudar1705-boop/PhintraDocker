@@ -32,7 +32,7 @@ def list_campaigns(db: Session = Depends(get_db), current_user: User = Depends(r
     """List all simulation campaigns with stats aggregates (Managers & Admins)."""
     admin_id = get_user_admin_id(db, current_user)
     company_id = get_user_company_id(db, current_user)
-    campaigns = db.query(Campaign).filter((Campaign.admin_id == admin_id) | (Campaign.admin_id == None)).all()
+    campaigns = db.query(Campaign).filter(Campaign.admin_id == admin_id).all()
     results = []
     for c in campaigns:
         sent = db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == c.id).count()
@@ -71,9 +71,11 @@ def get_campaign(id: UUID, db: Session = Depends(get_db), current_user: User = D
     """Get details of campaign by UUID with stats aggregates (Managers & Admins)."""
     admin_id = get_user_admin_id(db, current_user)
     company_id = get_user_company_id(db, current_user)
-    c = db.query(Campaign).filter(Campaign.id == id, (Campaign.admin_id == admin_id) | (Campaign.admin_id == None)).first()
+    c = db.query(Campaign).filter(Campaign.id == id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
+    if c.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this campaign")
         
     sent = db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == c.id).count()
     opened = db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == c.id, CampaignRecipient.status == "Opened").count()
@@ -105,6 +107,14 @@ def get_campaign(id: UUID, db: Session = Depends(get_db), current_user: User = D
     res.date = c.launch_date.strftime("%Y-%m-%d") if c.launch_date else c.created_at.strftime("%Y-%m-%d")
     return res
 
+def validate_approved_sender(db: Session, email: str):
+    from app.models.approved_sender import ApprovedSender
+    if not email:
+        return
+    sender = db.query(ApprovedSender).filter(ApprovedSender.email == email.strip(), ApprovedSender.is_active == True).first()
+    if not sender:
+        raise HTTPException(status_code=400, detail="Sender address is not approved.")
+
 @router.post("/campaigns", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)
 def create_campaign(camp_in: CampaignCreate, db: Session = Depends(get_db), current_user: User = Depends(require_manager)):
     """Create a new simulation campaign (Managers & Admins)."""
@@ -126,6 +136,10 @@ def create_campaign(camp_in: CampaignCreate, db: Session = Depends(get_db), curr
         if all_profiles:
             sender_profile_id = random.choice(all_profiles).profile_id
 
+    # Validate approved sender if provided
+    if camp_in.sender_email:
+        validate_approved_sender(db, camp_in.sender_email)
+
     db_camp = Campaign(
         name=name_val,
         type=type_val if type_val else "Link Phishing",
@@ -135,18 +149,26 @@ def create_campaign(camp_in: CampaignCreate, db: Session = Depends(get_db), curr
         template_id=camp_in.template_id,
         created_by=current_user.id,
         admin_id=admin_id,
-        sender_profile_id=sender_profile_id
+        sender_profile_id=sender_profile_id,
+        sender_email=camp_in.sender_email,
+        sender_display_name=camp_in.sender_display_name,
+        randomize_sender=camp_in.randomize_sender
     )
     db.add(db_camp)
     db.commit()
     db.refresh(db_camp)
     
+    if camp_in.department_id:
+        dept = db.query(Department).filter(Department.id == camp_in.department_id, Department.admin_id == admin_id).first()
+        if not dept:
+            raise HTTPException(status_code=403, detail="Department does not belong to this admin")
+
     # Assign employees if provided
     if camp_in.employee_ids:
         for emp_id in camp_in.employee_ids:
             emp = db.query(Employee).filter(
                 Employee.id == emp_id,
-                (Employee.company_id == company_id) | (Employee.admin_id == admin_id)
+                Employee.admin_id == admin_id
             ).first()
             if not emp:
                 continue
@@ -166,12 +188,18 @@ def update_campaign(id: UUID, camp_in: CampaignUpdate, db: Session = Depends(get
     """Modify details of simulation campaign (Managers & Admins)."""
     admin_id = get_user_admin_id(db, current_user)
     company_id = get_user_company_id(db, current_user)
-    camp = db.query(Campaign).filter(Campaign.id == id, (Campaign.admin_id == admin_id) | (Campaign.admin_id == None)).first()
+    camp = db.query(Campaign).filter(Campaign.id == id).first()
     if not camp:
         raise HTTPException(status_code=404, detail="Campaign not found")
+    if camp.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this campaign")
         
     update_data = camp_in.dict(exclude_unset=True)
     
+    # Validate approved sender if provided
+    if "sender_email" in update_data and update_data["sender_email"]:
+        validate_approved_sender(db, update_data["sender_email"])
+
     # Map fields
     if "title" in update_data and update_data["title"]:
         camp.name = update_data["title"]
@@ -192,6 +220,13 @@ def update_campaign(id: UUID, camp_in: CampaignUpdate, db: Session = Depends(get
     if "template_id" in update_data:
         camp.template_id = update_data["template_id"]
         
+    if "sender_email" in update_data:
+        camp.sender_email = update_data["sender_email"]
+    if "sender_display_name" in update_data:
+        camp.sender_display_name = update_data["sender_display_name"]
+    if "randomize_sender" in update_data:
+        camp.randomize_sender = update_data["randomize_sender"]
+
     db.commit()
     db.refresh(camp)
     
@@ -213,6 +248,45 @@ def personalize_content(text: str, employee_name: str, company_name: str, tracki
     text = text.replace("{{company_name}}", company_name)
     text = text.replace("{{login_link}}", tracking_link)
     return text
+
+def is_sender_approved(db: Session, email: str) -> bool:
+    from app.models.approved_sender import ApprovedSender
+    if not email:
+        return False
+    sender = db.query(ApprovedSender).filter(
+        ApprovedSender.email == email.strip(),
+        ApprovedSender.is_active == True
+    ).first()
+    return sender is not None
+
+def resolve_campaign_sender(db: Session, camp, template) -> tuple:
+    eff_sender_email = None
+    eff_sender_display_name = None
+    
+    if camp.randomize_sender:
+        from app.models.approved_sender import ApprovedSender
+        import random
+        active_senders = db.query(ApprovedSender).filter(ApprovedSender.is_active == True).all()
+        if not active_senders:
+            raise HTTPException(status_code=400, detail="No active approved senders found to randomize.")
+        chosen_sender = random.choice(active_senders)
+        eff_sender_email = chosen_sender.email
+        eff_sender_display_name = chosen_sender.display_name
+    else:
+        # Check campaign sender
+        if camp.sender_email and is_sender_approved(db, camp.sender_email):
+            eff_sender_email = camp.sender_email
+            eff_sender_display_name = camp.sender_display_name or (template.sender_name if template else None) or "Security Awareness"
+        # Check template sender
+        elif template and template.sender_email:
+            eff_sender_email = template.sender_email
+            eff_sender_display_name = template.sender_name or "Security Awareness"
+        # Fall back to template sender_email if defined, else camp sender, else default
+        else:
+            eff_sender_email = (template.sender_email if template else None) or camp.sender_email or settings.MAIL_FROM_EMAIL
+            eff_sender_display_name = camp.sender_display_name or (template.sender_name if template else None) or "Security Awareness"
+            
+    return eff_sender_email, eff_sender_display_name
 
 @router.post("/campaigns/{id}/send-test")
 def send_campaign_test_email(id: UUID, req: dict, db: Session = Depends(get_db), current_user: User = Depends(require_manager)):
@@ -251,7 +325,17 @@ def send_campaign_test_email(id: UUID, req: dict, db: Session = Depends(get_db),
     personalized_subject = personalize_content(subject, "Test Recipient", "Phintra Test Lab", tracking_link)
     personalized_body = personalize_content(body, "Test Recipient", "Phintra Test Lab", tracking_link)
     
-    success = send_email(db, test_email, f"[TEST] {personalized_subject}", personalized_body)
+    # Resolve approved sender rotation / randomization
+    eff_sender_email, eff_sender_display_name = resolve_campaign_sender(db, camp, template)
+
+    success = send_email(
+        db,
+        test_email,
+        f"[TEST] {personalized_subject}",
+        personalized_body,
+        sender_email=eff_sender_email,
+        sender_display_name=eff_sender_display_name
+    )
     if not success:
         raise HTTPException(status_code=500, detail="Failed to send test SMTP email. Check SMTP settings in .env.")
         
@@ -280,6 +364,35 @@ def launch_campaign_route(id: UUID, request: Request, db: Session = Depends(get_
     if not template:
         raise HTTPException(status_code=400, detail="No email template is configured for this campaign")
         
+    # Resolve approved sender rotation / randomization
+    eff_sender_email = None
+    eff_sender_display_name = None
+    
+    if camp.randomize_sender:
+        from app.models.approved_sender import ApprovedSender
+        import random
+        active_senders = db.query(ApprovedSender).filter(ApprovedSender.is_active == True).all()
+        if not active_senders:
+            raise HTTPException(status_code=400, detail="No active approved senders found to randomize.")
+        chosen_sender = random.choice(active_senders)
+        eff_sender_email = chosen_sender.email
+        eff_sender_display_name = chosen_sender.display_name
+    else:
+        if camp.sender_email:
+            validate_approved_sender(db, camp.sender_email)
+            eff_sender_email = camp.sender_email
+            eff_sender_display_name = camp.sender_display_name or template.sender_name or "Security Awareness"
+        elif template.sender_email:
+            validate_approved_sender(db, template.sender_email)
+            eff_sender_email = template.sender_email
+            eff_sender_display_name = template.sender_name or "Security Awareness"
+        elif settings.MAIL_FROM_EMAIL:
+            validate_approved_sender(db, settings.MAIL_FROM_EMAIL)
+            eff_sender_email = settings.MAIL_FROM_EMAIL
+            eff_sender_display_name = "Security Awareness"
+        else:
+            raise HTTPException(status_code=400, detail="Sender address is not approved.")
+
     # Get all recipients
     recipients = db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == id).all()
     
@@ -337,17 +450,26 @@ def launch_campaign_route(id: UUID, request: Request, db: Session = Depends(get_
         open_pixel_url = f"{request.base_url}campaigns/open/{r.track_id}"
         personalized_body += f'<img src="{open_pixel_url}" width="1" height="1" style="display:none;" />'
 
-        success = send_email(
-            db,
-            emp.email,
-            personalized_subject,
-            personalized_body,
-            campaign_id=camp.id,
-            template_id=template.id,
-            employee_id=emp.id,
-            admin_id=admin_id,
-            sender_profile=sender_profile
-        )
+        try:
+            success = send_email(
+                db,
+                emp.email,
+                personalized_subject,
+                personalized_body,
+                campaign_id=camp.id,
+                template_id=template.id,
+                employee_id=emp.id,
+                admin_id=admin_id,
+                sender_profile=sender_profile,
+                sender_email=eff_sender_email,
+                sender_display_name=eff_sender_display_name,
+                raise_on_error=True
+            )
+        except Exception as e:
+            if "Microsoft sender permission missing" in str(e):
+                raise HTTPException(status_code=400, detail="Microsoft sender permission missing.")
+            success = False
+
         if success:
             r.status = "Sent"
             sent_count += 1
@@ -386,9 +508,11 @@ def delete_campaign(id: UUID, db: Session = Depends(get_db), current_user: User 
     """Delete simulation campaign (Managers & Admins)."""
     admin_id = get_user_admin_id(db, current_user)
     company_id = get_user_company_id(db, current_user)
-    camp = db.query(Campaign).filter(Campaign.id == id, (Campaign.admin_id == admin_id) | (Campaign.admin_id == None)).first()
+    camp = db.query(Campaign).filter(Campaign.id == id).first()
     if not camp:
         raise HTTPException(status_code=404, detail="Campaign not found")
+    if camp.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this campaign")
     camp_name = camp.name
     db.delete(camp)
     db.commit()
@@ -450,13 +574,23 @@ def send_campaign_reminder_route(id: UUID, db: Session = Depends(get_db), curren
         from app.models.sender_profile import SenderProfile
         sender_profile = db.query(SenderProfile).filter(SenderProfile.profile_id == camp.sender_profile_id).first()
 
+    # Resolve approved sender rotation / randomization
+    eff_sender_email, eff_sender_display_name = resolve_campaign_sender(db, camp, template)
+
     for r in recipients:
         emp = db.query(Employee).filter(
             Employee.id == r.employee_id,
             (Employee.company_id == company_id) | (Employee.admin_id == admin_id)
         ).first()
         if emp:
-            success = send_email(db, emp.email, subject, body)
+            success = send_email(
+                db,
+                emp.email,
+                subject,
+                body,
+                sender_email=eff_sender_email,
+                sender_display_name=eff_sender_display_name
+            )
             if success:
                 sent_count += 1
                 
@@ -565,6 +699,9 @@ def trigger_awareness_emails(id: UUID, db: Session = Depends(get_db), current_us
         except Exception:
             body = template.body_html
     
+    # Resolve approved sender rotation / randomization
+    eff_sender_email, eff_sender_display_name = resolve_campaign_sender(db, camp, template)
+
     sent_count = 0
     failed_count = 0
     for recipient in recipients:
@@ -575,7 +712,15 @@ def trigger_awareness_emails(id: UUID, db: Session = Depends(get_db), current_us
         if not emp:
             continue
             
-        success = send_email(db, emp.email, subject, body, admin_id=admin_id)
+        success = send_email(
+            db,
+            emp.email,
+            subject,
+            body,
+            admin_id=admin_id,
+            sender_email=eff_sender_email,
+            sender_display_name=eff_sender_display_name
+        )
         if success:
             recipient.status = "Sent"
             sent_count += 1
@@ -717,9 +862,11 @@ def create_email_template(temp_in: EmailTemplateCreate, db: Session = Depends(ge
 def update_email_template(id: UUID, temp_in: EmailTemplateUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_manager)):
     """Update simulation email template (Managers & Admins)."""
     admin_id = get_user_admin_id(db, current_user)
-    temp = db.query(EmailTemplate).filter(EmailTemplate.id == id, (EmailTemplate.admin_id == admin_id) | (EmailTemplate.admin_id == None)).first()
+    temp = db.query(EmailTemplate).filter(EmailTemplate.id == id).first()
     if not temp:
-        raise HTTPException(status_code=404, detail="Template not found or unauthorized")
+        raise HTTPException(status_code=404, detail="Template not found")
+    if temp.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this template")
         
     update_data = temp_in.dict(exclude_unset=True)
     
@@ -785,9 +932,11 @@ def clone_email_template(id: UUID, db: Session = Depends(get_db), current_user: 
 def delete_email_template(id: UUID, db: Session = Depends(get_db), current_user: User = Depends(require_manager)):
     """Delete simulation email template (Managers & Admins)."""
     admin_id = get_user_admin_id(db, current_user)
-    temp = db.query(EmailTemplate).filter(EmailTemplate.id == id, (EmailTemplate.admin_id == admin_id) | (EmailTemplate.admin_id == None)).first()
+    temp = db.query(EmailTemplate).filter(EmailTemplate.id == id).first()
     if not temp:
-        raise HTTPException(status_code=404, detail="Template not found or unauthorized")
+        raise HTTPException(status_code=404, detail="Template not found")
+    if temp.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this template")
     db.delete(temp)
     db.commit()
     return {"detail": "Email template successfully deleted"}
@@ -1583,14 +1732,28 @@ def create_report_log(req: ReportSubmitRequest, db: Session = Depends(get_db)):
         title = "Simulated phishing email reported" if req.action == "report" else "Email marked safe"
         msg = f"{emp.first_name} {emp.last_name} successfully reported a simulated phishing email." if req.action == "report" else f"{emp.first_name} {emp.last_name} marked a simulated email as safe."
         
-        notif = Notification(
-            user_id=None,
-            employee_id=req.employee_id,
-            title=title,
-            message=msg,
-            is_read=False
-        )
-        db.add(notif)
+        target_admin_id = emp.admin_id if emp else None
+        if not target_admin_id and emp and emp.company_id:
+            from app.models.company import Company as CompanyModel
+            comp_row = db.query(CompanyModel).filter(CompanyModel.id == emp.company_id).first()
+            if comp_row:
+                target_admin_id = comp_row.admin_id
+        
+        from app.models.user import User
+        if target_admin_id:
+            admins = db.query(User).filter(User.id == target_admin_id).all()
+        else:
+            admins = db.query(User).filter(User.role == "Admin").all()
+            
+        for admin in admins:
+            notif = Notification(
+                user_id=admin.id,
+                employee_id=req.employee_id,
+                title=title,
+                message=msg,
+                is_read=False
+            )
+            db.add(notif)
         db.commit()
         
         if req.action == "report" and emp:
@@ -1626,8 +1789,10 @@ def get_employee_campaign_feed(
     emp = db.query(Employee).filter(Employee.id == current_user.id).first()
     if not emp:
         emp = db.query(Employee).filter(Employee.email == current_user.email).first()
-        if not emp:
-            raise HTTPException(status_code=404, detail="Employee profile not found")
+    if not emp and current_user.role in ["Admin", "admin", "Security Administrator", "Security Manager", "Manager"]:
+        emp = db.query(Employee).filter(Employee.admin_id == current_user.id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
             
     # Fetch all recipient records for this employee
     recipients = db.query(CampaignRecipient).filter(CampaignRecipient.employee_id == emp.id).all()
@@ -1751,14 +1916,28 @@ def report_campaign_simulation(
         
         # Notify Admin
         from app.models.notification import Notification
-        notif = Notification(
-            user_id=None,
-            employee_id=emp.id,
-            title="Simulated phishing email reported",
-            message=f"{emp.first_name} {emp.last_name} successfully reported a simulated phishing email.",
-            is_read=False
-        )
-        db.add(notif)
+        target_admin_id = emp.admin_id if emp else None
+        if not target_admin_id and emp and emp.company_id:
+            from app.models.company import Company as CompanyModel
+            comp_row = db.query(CompanyModel).filter(CompanyModel.id == emp.company_id).first()
+            if comp_row:
+                target_admin_id = comp_row.admin_id
+        
+        from app.models.user import User
+        if target_admin_id:
+            admins = db.query(User).filter(User.id == target_admin_id).all()
+        else:
+            admins = db.query(User).filter(User.role == "Admin").all()
+            
+        for admin in admins:
+            notif = Notification(
+                user_id=admin.id,
+                employee_id=emp.id,
+                title="Simulated phishing email reported",
+                message=f"{emp.first_name} {emp.last_name} successfully reported a simulated phishing email.",
+                is_read=False
+            )
+            db.add(notif)
         
         # Audit Log
         from app.models.audit_log import AuditLog

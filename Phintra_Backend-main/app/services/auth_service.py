@@ -147,9 +147,18 @@ def register_user(db: Session, user_in: UserCreate) -> User:
 
 def authenticate_user(db: Session, email: str, password: str) -> str:
     """Authenticate portal user credentials and return a signed JWT access token."""
+    from app.config import settings
+    import sqlalchemy as sa
+    
     # 1. First try User table (Admins/Managers)
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(sa.func.lower(User.email) == email.strip().lower()).first()
     if user:
+        if settings.APP_MODE == "single_company":
+            if user.role in ["Admin", "admin", "Security Administrator"] and user.email.strip().lower() != settings.ALLOWED_ADMIN_EMAIL.strip().lower():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied. This application is restricted to our company."
+                )
         if not verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -165,8 +174,26 @@ def authenticate_user(db: Session, email: str, password: str) -> str:
         
     # 2. Try Employee table
     from app.models.employee import Employee
-    emp = db.query(Employee).filter(Employee.email == email).first()
+    emp = db.query(Employee).filter(sa.func.lower(Employee.email) == email.strip().lower()).first()
     if emp:
+        if settings.APP_MODE == "single_company":
+            allowed_admin = db.query(User).filter(sa.func.lower(User.email) == settings.ALLOWED_ADMIN_EMAIL.strip().lower()).first()
+            from app.models.company import Company
+            company = db.query(Company).filter(sa.func.lower(Company.company_name) == settings.COMPANY_NAME.strip().lower()).first()
+            if not company:
+                company = db.query(Company).first()
+                
+            if allowed_admin and emp.admin_id != allowed_admin.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied. This application is restricted to our company."
+                )
+            if company and emp.company_id != company.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied. This application is restricted to our company."
+                )
+                
         if not emp.password_hash or not verify_password(password, emp.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

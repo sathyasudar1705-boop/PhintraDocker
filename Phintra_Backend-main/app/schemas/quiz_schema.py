@@ -59,5 +59,5 @@ class QuizAttemptResponse(QuizAttemptBase):
         from_attributes = True
 
 class QuizAttemptSubmit(BaseModel):
-    employee_id: UUID
+    employee_id: Optional[UUID] = None
     answers: List[int] # index of options selected for each question

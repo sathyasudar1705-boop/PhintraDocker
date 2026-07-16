@@ -45,9 +45,17 @@ def get_dashboard_analytics(db: Session, admin_id=None, company_id=None) -> dict
     total_employees = emp_q.count()
     emp_ids = [e.id for e in emp_q.all()]
 
-    total_departments = db.query(Department).filter(
-        Department.company_id == company_id if company_id else True
-    ).count() if company_id else db.query(Department).count()
+    if company_id:
+        total_departments = db.query(Department).filter(
+            Department.company_id == company_id
+        ).count()
+    elif admin_id:
+        total_departments = db.query(Department).filter(
+            Department.admin_id == admin_id
+        ).count()
+    else:
+        total_departments = db.query(Department).count()
+
 
     # Count campaigns owned by this admin
     if admin_id:

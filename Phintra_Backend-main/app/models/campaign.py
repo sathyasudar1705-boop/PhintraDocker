@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, func, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, func, Integer, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -17,6 +17,9 @@ class Campaign(Base):
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     template_id = Column(UUID(as_uuid=True), ForeignKey("email_templates.id", ondelete="SET NULL"), nullable=True)
     sender_profile_id = Column(UUID(as_uuid=True), ForeignKey("sender_profiles.profile_id", ondelete="SET NULL"), nullable=True)
+    sender_email = Column(String, nullable=True)
+    sender_display_name = Column(String, nullable=True)
+    randomize_sender = Column(Boolean, default=False, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

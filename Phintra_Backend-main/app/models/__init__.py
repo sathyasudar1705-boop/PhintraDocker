@@ -13,6 +13,7 @@ from app.models.audit_log import AuditLog, SecurityScore
 from app.models.notification import Notification
 from app.models.message import Message
 from app.models.sender_profile import SenderProfile
+from app.models.approved_sender import ApprovedSender
 
 # Create direct list of model classes for helper access
 __all__ = [
@@ -43,5 +44,6 @@ __all__ = [
     "SecurityScore",
     "Notification",
     "Message",
-    "SenderProfile"
+    "SenderProfile",
+    "ApprovedSender"
 ]

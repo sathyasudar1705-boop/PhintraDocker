@@ -13,11 +13,12 @@ class Settings(BaseSettings):
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
     
-    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.office365.com")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() in ("true", "1", "yes")
     SMTP_USER: str = os.getenv("SMTP_USER", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
-    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "awareness@phintra.com")
+    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://phintra-frontend.vercel.app")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")  # Add your Gemini API key
     
@@ -25,8 +26,21 @@ class Settings(BaseSettings):
     MICROSOFT_CLIENT_SECRET: str = os.getenv("MICROSOFT_CLIENT_SECRET", "")
     MICROSOFT_TENANT_ID: str = os.getenv("MICROSOFT_TENANT_ID", "common")
     MICROSOFT_REDIRECT_URI: str = os.getenv("MICROSOFT_REDIRECT_URI", "")
+
+    # Microsoft Graph API — dedicated mail sending credentials
+    # These use client_credentials flow (no user sign-in required)
+    MAIL_MICROSOFT_CLIENT_ID: str = os.getenv("MAIL_MICROSOFT_CLIENT_ID", "")
+    MAIL_MICROSOFT_CLIENT_SECRET: str = os.getenv("MAIL_MICROSOFT_CLIENT_SECRET", "")
+    MAIL_MICROSOFT_TENANT_ID: str = os.getenv("MAIL_MICROSOFT_TENANT_ID", "")
+    # The mailbox to send from (must have Mail.Send permission granted to the app)
+    MAIL_FROM_EMAIL: str = os.getenv("MAIL_FROM_EMAIL", "")
     
     ENABLE_MICROSOFT_AUTO_REGISTRATION: bool = os.getenv("ENABLE_MICROSOFT_AUTO_REGISTRATION", "false").lower() in ("true", "1", "yes")
+    APP_MODE: str = os.getenv("APP_MODE", "single_company")
+    COMPANY_NAME: str = os.getenv("COMPANY_NAME", "Your Company Name")
+    COMPANY_DOMAIN: str = os.getenv("COMPANY_DOMAIN", "yourcompany.com")
+    ALLOWED_ADMIN_EMAIL: str = os.getenv("ALLOWED_ADMIN_EMAIL", "admin@yourcompany.com")
+    ENABLE_PUBLIC_REGISTER: bool = os.getenv("ENABLE_PUBLIC_REGISTER", "false").lower() in ("true", "1", "yes")
     TEST_ADMIN_EMAIL: str = os.getenv("TEST_ADMIN_EMAIL", "")
     TEST_EMPLOYEE_EMAIL: str = os.getenv("TEST_EMPLOYEE_EMAIL", "")
 

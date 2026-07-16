@@ -25,14 +25,19 @@ def list_companies(db: Session = Depends(get_db), current_user: User = Depends(g
 def get_company(id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get single company details."""
     admin_id = get_admin_id(current_user)
-    company = db.query(Company).filter(Company.id == id, Company.admin_id == admin_id).first()
+    company = db.query(Company).filter(Company.id == id).first()
     if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    if company.admin_id != admin_id:
         raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this company")
     return company
 
 @router.post("", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
 def create_company(company_in: CompanyCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Add a new company (Admins)."""
+    from app.config import settings
+    if settings.APP_MODE == "single_company":
+        raise HTTPException(status_code=403, detail="Forbidden: Action disabled in single-tenant mode.")
     if current_user.role not in ["Admin", "admin"]:
         raise HTTPException(status_code=403, detail="Admin privileges required")
     admin_id = get_admin_id(current_user)
@@ -65,8 +70,10 @@ def update_company(id: UUID, company_in: CompanyUpdate, db: Session = Depends(ge
         raise HTTPException(status_code=403, detail="Admin privileges required")
     admin_id = get_admin_id(current_user)
     
-    company = db.query(Company).filter(Company.id == id, Company.admin_id == admin_id).first()
+    company = db.query(Company).filter(Company.id == id).first()
     if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    if company.admin_id != admin_id:
         raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this company")
         
     update_data = company_in.dict(exclude_unset=True)
@@ -93,12 +100,17 @@ def update_company(id: UUID, company_in: CompanyUpdate, db: Session = Depends(ge
 @router.delete("/{id}", status_code=status.HTTP_200_OK)
 def delete_company(id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Delete a company."""
+    from app.config import settings
+    if settings.APP_MODE == "single_company":
+        raise HTTPException(status_code=403, detail="Forbidden: Action disabled in single-tenant mode.")
     if current_user.role not in ["Admin", "admin"]:
         raise HTTPException(status_code=403, detail="Admin privileges required")
     admin_id = get_admin_id(current_user)
     
-    company = db.query(Company).filter(Company.id == id, Company.admin_id == admin_id).first()
+    company = db.query(Company).filter(Company.id == id).first()
     if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    if company.admin_id != admin_id:
         raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this company")
         
     db.delete(company)

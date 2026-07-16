@@ -8,7 +8,7 @@ from app.models.campaign import EmailTemplate
 from app.models.employee import Employee
 from app.models.user import User
 from app.schemas.email_schema import ThreatFeedCreate, ThreatFeedResponse, EmailLogResponse, EmailSendRequest, EmailSendBulkRequest, EmailTestRequest, EmailCampaignSendRequest
-from app.schemas.certificate_schema import ReportedEmailCreate, ReportedEmailUpdate, ReportedEmailResponse, GmailReportEmailCreate, ReportedEmailStatusUpdate, ReportedEmailReview, GmailAdminMessageCreate
+from app.schemas.certificate_schema import ReportedEmailCreate, ReportedEmailUpdate, ReportedEmailResponse, OutlookReportEmailCreate, ReportedEmailStatusUpdate, ReportedEmailReview, OutlookAdminMessageCreate
 from app.services.email_service import send_email
 from app.dependencies import require_manager, require_employee
 from app.config import settings
@@ -190,17 +190,7 @@ def get_email_logs(db: Session = Depends(get_db), current_user: User = Depends(r
     admin_id = get_user_admin_id(db, current_user)
     company = db.query(Company).filter(Company.admin_id == admin_id).first()
 
-    # Scope logs to employees owned by this admin / company
-    query = db.query(EmailLog)
-    if company:
-        query = query.join(Employee, EmailLog.employee_id == Employee.id, isouter=True).filter(
-            (Employee.company_id == company.id) | (Employee.admin_id == admin_id) | (EmailLog.employee_id == None)
-        )
-    else:
-        query = query.join(Employee, EmailLog.employee_id == Employee.id, isouter=True).filter(
-            (Employee.admin_id == admin_id) | (EmailLog.employee_id == None)
-        )
-    return query.order_by(EmailLog.sent_at.desc()).all()
+    return db.query(EmailLog).filter(EmailLog.admin_id == admin_id).order_by(EmailLog.sent_at.desc()).all()
 
 
 # =====================================================================
@@ -235,7 +225,9 @@ def get_my_simulation_inbox(db: Session = Depends(get_db), current_user: User = 
     import json
     
     # 1. Get employee record
-    emp = db.query(Employee).filter(Employee.email == current_user.email).first()
+    emp = db.query(Employee).filter(Employee.id == current_user.id).first()
+    if not emp:
+        emp = db.query(Employee).filter(Employee.email == current_user.email).first()
     if not emp:
         return []
         
@@ -318,15 +310,7 @@ def list_reported_emails(
     if current_user.role not in ["Admin", "admin"] and hasattr(current_user, "admin_id") and current_user.admin_id:
         admin_id = current_user.admin_id
         
-    company = db.query(Company).filter(Company.admin_id == admin_id).first()
-    if company:
-        query = db.query(ReportedEmail).join(Employee, ReportedEmail.employee_id == Employee.id).filter(
-            (Employee.company_id == company.id) | (Employee.admin_id == admin_id)
-        )
-    else:
-        query = db.query(ReportedEmail).join(Employee, ReportedEmail.employee_id == Employee.id).filter(
-            Employee.admin_id == admin_id
-        )
+    query = db.query(ReportedEmail).filter(ReportedEmail.admin_id == admin_id)
     
     # Apply filters
     if status and status != "All Statuses" and status != "All":
@@ -356,20 +340,11 @@ def get_reported_email_detail(id: UUID, db: Session = Depends(get_db), current_u
     if current_user.role not in ["Admin", "admin"] and hasattr(current_user, "admin_id") and current_user.admin_id:
         admin_id = current_user.admin_id
         
-    company = db.query(Company).filter(Company.admin_id == admin_id).first()
-    if company:
-        report = db.query(ReportedEmail).join(Employee, ReportedEmail.employee_id == Employee.id).filter(
-            ReportedEmail.id == id,
-            (Employee.company_id == company.id) | (Employee.admin_id == admin_id)
-        ).first()
-    else:
-        report = db.query(ReportedEmail).join(Employee, ReportedEmail.employee_id == Employee.id).filter(
-            ReportedEmail.id == id,
-            Employee.admin_id == admin_id
-        ).first()
-    
+    report = db.query(ReportedEmail).filter(ReportedEmail.id == id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Reported email not found")
+    if report.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this report")
     return report
 
 @router.post("/reported-emails", response_model=ReportedEmailResponse, status_code=status.HTTP_201_CREATED)
@@ -382,7 +357,23 @@ def submit_reported_email(req: ReportedEmailCreate, db: Session = Depends(get_db
     from datetime import datetime, timedelta
 
     # 1. Fetch employee details
-    emp = db.query(Employee).filter(Employee.id == req.employee_id).first() if req.employee_id else None
+    if current_user.role in ["Employee", "employee"]:
+        employee_id = current_user.id
+    else:
+        employee_id = req.employee_id
+        
+    if not employee_id:
+        raise HTTPException(status_code=400, detail="Employee ID is required")
+        
+    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
+        
+    if current_user.role not in ["Employee", "employee"]:
+        admin_id = get_user_admin_id(db, current_user)
+        if emp.admin_id != admin_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Employee does not belong to your organization")
+
     employee_name = f"{emp.first_name} {emp.last_name}" if emp else "Unknown Employee"
     employee_email = emp.email if emp else "unknown@company.com"
 
@@ -396,9 +387,12 @@ def submit_reported_email(req: ReportedEmailCreate, db: Session = Depends(get_db
     # 3. Run AI threat analysis
     analysis = analyze_email_risk(req.email_subject, req.email_sender, req.email_body or "")
 
+    # Resolve target admin
+    target_admin_id = emp.admin_id if emp else None
+
     # 4. Create database record
     db_report = ReportedEmail(
-        employee_id=req.employee_id,
+        employee_id=employee_id,
         employee_name=employee_name,
         employee_email=employee_email,
         campaign_id=req.campaign_id,
@@ -411,9 +405,14 @@ def submit_reported_email(req: ReportedEmailCreate, db: Session = Depends(get_db
         reported_at=datetime.now(),
         reviewed_at=None,
         reviewed_by=None,
+        admin_id=target_admin_id,
+        department_id=emp.department_id if emp else None,
         
         # Backward compatibility fields
-        reported_by=current_user.id if hasattr(current_user, 'id') else None,
+        # reported_by is a FK to users table — only set for Admin/Manager users, not employees
+        # Only set reported_by for Admin/Manager (they exist in the users table)
+        # Employees are stored in the employees table, so keep this field NULL.
+        reported_by=current_user.id if current_user.role in ["Admin", "admin", "Manager", "manager"] else None,
         subject=req.email_subject,
         sender=req.email_sender,
         email_date=datetime.now(),
@@ -425,6 +424,10 @@ def submit_reported_email(req: ReportedEmailCreate, db: Session = Depends(get_db
     db.add(db_report)
     db.commit()
     db.refresh(db_report)
+
+    from app.utils.scoring import recalculate_employee_score
+    if employee_id:
+        recalculate_employee_score(employee_id, db)
 
     # 5. Admin alerts and notifications — scoped to employee's own company admin only
     from app.models.company import Company as CompanyModel
@@ -560,183 +563,6 @@ def submit_reported_email(req: ReportedEmailCreate, db: Session = Depends(get_db
     return db_report
 
 
-@router.post("/gmail/report-email", response_model=dict, status_code=status.HTTP_201_CREATED)
-def report_email_from_gmail(req: GmailReportEmailCreate, request: Request, db: Session = Depends(get_db)):
-    """Ingest a suspicious email report from Gmail Add-on, analyze risk with local AI, store, and alert admins."""
-    from app.services.ai_service import analyze_email_risk
-    from app.models.notification import Notification
-    from app.models.employee import Employee
-    from datetime import datetime, timedelta
-    from fastapi import HTTPException
-    import traceback
-    import os
-    
-    # PHASE 8 - SECURITY: Validate X-PHINTRA-ADDON-KEY if set in env
-    addon_key = os.getenv("PHINTRA_ADDON_KEY")
-    if addon_key:
-        req_key = request.headers.get("X-PHINTRA-ADDON-KEY")
-        if req_key != addon_key:
-            raise HTTPException(status_code=403, detail="Forbidden: Invalid Phintra Add-on Key")
-            
-    try:
-        # PHASE 7 - Payload Mappings
-        email_subject = req.subject if req.subject else (req.email_subject or "No subject")
-        email_sender = req.sender if req.sender else (req.email_sender or "Unknown sender")
-        email_body = req.body if req.body else (req.email_body or "")
-        
-        reporter_email = req.employee_email or req.reported_user_email
-        message_id = req.message_id
-        thread_id = req.thread_id
-        
-        # Parse reported_time
-        reported_at_val = datetime.now()
-        reported_time_str = req.reported_at or req.reported_time
-        if reported_time_str:
-            try:
-                reported_at_val = datetime.fromisoformat(reported_time_str.replace("Z", "+00:00"))
-            except Exception:
-                try:
-                    reported_at_val = datetime.strptime(reported_time_str, "%Y-%m-%d %H:%M:%S")
-                except Exception:
-                    pass
-                    
-        # Debug logs
-        print("Gmail report subject:", email_subject)
-        print("Gmail report sender:", email_sender)
-        print("Gmail report body length:", len(email_body))
-        print("Gmail report user:", reporter_email)
-        
-        # Run local AI risk analysis
-        analysis = analyze_email_risk(email_subject, email_sender, email_body)
-        
-        # PHASE 2 - EMPLOYEE AUTO MAPPING
-        employee_id = None
-        employee_name = "Unknown Employee"
-        employee_email = reporter_email or "unknown@company.com"
-        department_id = None
-        
-        if reporter_email:
-            emp = db.query(Employee).filter(Employee.email == reporter_email.strip()).first()
-            if emp:
-                employee_id = emp.id
-                employee_name = f"{emp.first_name} {emp.last_name}"
-                employee_email = emp.email
-                department_id = emp.department_id
-                
-        # PHASE 3 - CAMPAIGN AUTO MAPPING
-        campaign_id = None
-        campaign_name = "External Gmail Report"
-            
-        # 3. Create ReportedEmail record
-        db_report = ReportedEmail(
-            employee_id=employee_id,
-            employee_name=employee_name,
-            employee_email=employee_email,
-            campaign_id=None,
-            campaign_name="External Gmail Report",
-            reported_by=req.reported_by,
-            department_id=department_id,
-            report_source="gmail_addon",
-            message_id=message_id,
-            thread_id=thread_id,
-            # New columns
-            email_subject=email_subject,
-            email_sender=email_sender,
-            email_body=email_body,
-            # Legacy columns
-            subject=email_subject,
-            sender=email_sender,
-            email_date=req.email_date or reported_at_val,
-            reported_at=reported_at_val,
-            created_at=reported_at_val,
-            report_reason="Reported from Gmail Add-on",
-            risk_score=analysis["risk_score"],
-            risk_level=analysis["risk_level"],
-            report_status="Pending",
-            status="Pending",
-            analysis_results=analysis
-        )
-        db.add(db_report)
-        db.commit()
-        db.refresh(db_report)
-        
-        # PHASE 4 - ADMIN NOTIFICATIONS
-        admins = db.query(User).filter(User.role == "Admin").all()
-        for admin in admins:
-            sec_notif = Notification(
-                user_id=admin.id,
-                employee_id=employee_id,
-                title="New Email Reported",
-                message=f"Employee {employee_name} reported a suspicious email.",
-                notification_type="security_alert",
-                is_read=False
-            )
-            db.add(sec_notif)
-
-        # Critical threat alert
-        if analysis["risk_level"] == "Critical":
-            for admin in admins:
-                admin_notif = Notification(
-                    user_id=admin.id,
-                    employee_id=employee_id,
-                    title="Critical Phishing Threat Reported",
-                    message=f"Critical threat reported by {email_sender}: '{email_subject}' (Score: {analysis['risk_score']})",
-                    notification_type="security_alert",
-                    is_read=False
-                )
-                db.add(admin_notif)
-                
-        # Simulated campaign rewards tracking
-        if employee_id:
-            from app.models.campaign import CampaignRecipient
-            from app.models.email_log import EmailLog
-            from app.models.certificate import Reward
-            
-            match_log = db.query(EmailLog).filter(
-                EmailLog.employee_id == employee_id,
-                EmailLog.subject == email_subject
-            ).first()
-            
-            if match_log:
-                r = db.query(CampaignRecipient).filter(
-                    CampaignRecipient.campaign_id == match_log.campaign_id,
-                    CampaignRecipient.employee_id == employee_id
-                ).first()
-                if r:
-                    r.status = "Reported"
-                match_log.status = "Reported"
-                
-                # Award +150 XP
-                reward_desc = f"Successfully Spotted Simulated Phishing: {email_subject}"
-                existing_reward = db.query(Reward).filter(
-                    Reward.employee_id == employee_id,
-                    Reward.description == reward_desc
-                ).first()
-                if not existing_reward:
-                    reward = Reward(
-                        employee_id=employee_id,
-                        xp_amount=150,
-                        description=reward_desc
-                    )
-                    db.add(reward)
-                    
-        db.commit()
-        return {
-            "message": "Email reported successfully",
-            "email_subject": email_subject,
-            "email_sender": email_sender,
-            "report_status": "Pending"
-        }
-    except Exception as e:
-        db.rollback()
-        print("Error processing reported email from Gmail:", str(e))
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal Server Error in reporting email: {str(e)}"
-        )
-
-
 @router.put("/reported-emails/{id}/status", response_model=ReportedEmailResponse)
 def update_reported_email_status(
     id: UUID, 
@@ -752,20 +578,11 @@ def update_reported_email_status(
     if current_user.role not in ["Admin", "admin"] and hasattr(current_user, "admin_id") and current_user.admin_id:
         admin_id = current_user.admin_id
         
-    company = db.query(Company).filter(Company.admin_id == admin_id).first()
-    if company:
-        report = db.query(ReportedEmail).join(Employee, ReportedEmail.employee_id == Employee.id).filter(
-            ReportedEmail.id == id,
-            (Employee.company_id == company.id) | (Employee.admin_id == admin_id)
-        ).first()
-    else:
-        report = db.query(ReportedEmail).join(Employee, ReportedEmail.employee_id == Employee.id).filter(
-            ReportedEmail.id == id,
-            Employee.admin_id == admin_id
-        ).first()
-    
+    report = db.query(ReportedEmail).filter(ReportedEmail.id == id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Reported email not found")
+    if report.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this report")
         
     old_status = report.report_status
     new_status = req.report_status
@@ -789,6 +606,9 @@ def update_reported_email_status(
             
     db.commit()
     db.refresh(report)
+    from app.utils.scoring import recalculate_employee_score
+    if report.employee_id:
+        recalculate_employee_score(report.employee_id, db)
     return report
 
 @router.put("/reported-emails/{id}", response_model=ReportedEmailResponse)
@@ -812,20 +632,11 @@ def review_reported_email(
     if current_user.role not in ["Admin", "admin"] and hasattr(current_user, "admin_id") and current_user.admin_id:
         admin_id = current_user.admin_id
         
-    company = db.query(Company).filter(Company.admin_id == admin_id).first()
-    if company:
-        report = db.query(ReportedEmail).join(Employee, ReportedEmail.employee_id == Employee.id).filter(
-            ReportedEmail.id == id,
-            (Employee.company_id == company.id) | (Employee.admin_id == admin_id)
-        ).first()
-    else:
-        report = db.query(ReportedEmail).join(Employee, ReportedEmail.employee_id == Employee.id).filter(
-            ReportedEmail.id == id,
-            Employee.admin_id == admin_id
-        ).first()
-    
+    report = db.query(ReportedEmail).filter(ReportedEmail.id == id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Reported email not found")
+    if report.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this report")
         
     old_status = report.report_status
     new_status = req.report_status

@@ -78,9 +78,21 @@ def submit_quiz_attempt(id: UUID, attempt_in: QuizAttemptSubmit, db: Session = D
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found or access denied")
         
-    emp = db.query(Employee).filter(Employee.id == attempt_in.employee_id).first()
+    if current_user.role in ["Employee", "employee"]:
+        employee_id = current_user.id
+    else:
+        employee_id = attempt_in.employee_id
+        
+    if not employee_id:
+        raise HTTPException(status_code=400, detail="Employee ID is required")
+        
+    emp = db.query(Employee).filter(Employee.id == employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
+        
+    if current_user.role not in ["Employee", "employee"]:
+        if emp.admin_id != admin_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Employee does not belong to your organization")
         
     questions = db.query(QuizQuestion).filter(QuizQuestion.quiz_id == id).order_by(QuizQuestion.created_at.asc()).all()
     if not questions:
@@ -134,14 +146,14 @@ def submit_quiz_attempt(id: UUID, attempt_in: QuizAttemptSubmit, db: Session = D
     if passed:
         assignment = db.query(TrainingAssignment).filter(
             TrainingAssignment.employee_id == emp.id,
-            TrainingAssignment.module_id == quiz.module_id
+            TrainingAssignment.training_module_id == quiz.module_id
         ).first()
         
         # Create assignment if it didn't exist
         if not assignment:
             assignment = TrainingAssignment(
                 employee_id=emp.id,
-                module_id=quiz.module_id,
+                training_module_id=quiz.module_id,
                 progress=100,
                 completed=True,
                 completed_at=datetime.utcnow()

@@ -84,6 +84,9 @@ class CampaignBase(BaseModel):
     status: str = "Draft" # Draft, Active, Completed
     launch_date: Optional[datetime] = None
     department_id: Optional[UUID] = None
+    sender_email: Optional[str] = None
+    sender_display_name: Optional[str] = None
+    randomize_sender: Optional[bool] = False
 
 class CampaignCreate(CampaignBase):
     created_by: Optional[UUID] = None
@@ -99,6 +102,9 @@ class CampaignUpdate(BaseModel):
     launch_date: Optional[datetime] = None
     department_id: Optional[UUID] = None
     template_id: Optional[UUID] = None
+    sender_email: Optional[str] = None
+    sender_display_name: Optional[str] = None
+    randomize_sender: Optional[bool] = None
 
 class CampaignResponse(CampaignBase):
     id: UUID

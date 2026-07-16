@@ -334,16 +334,16 @@ def get_employee_dashboard(current_user: User = Depends(get_current_user), db: S
     module_ids = {a.training_module_id for a in assignments}
     assigned_trainings = []
     
+    completions = db.query(TrainingCompletion).filter(
+        TrainingCompletion.employee_id == emp.id
+    ).all()
+
     if module_ids:
         modules = db.query(TrainingModule).filter(
             TrainingModule.id.in_(module_ids),
             TrainingModule.admin_id == emp.admin_id
         ).all()
         
-        completions = db.query(TrainingCompletion).filter(
-            TrainingCompletion.employee_id == emp.id,
-            TrainingCompletion.training_module_id.in_(module_ids)
-        ).all()
         completions_dict = {c.training_module_id: c.status.value for c in completions}
         completions_obj = {c.training_module_id: c for c in completions}
 
@@ -449,10 +449,21 @@ def get_employee_dashboard(current_user: User = Depends(get_current_user), db: S
 
     # Leaderboard ranking and percentile
     company_employees = db.query(Employee).filter(
-        Employee.company_id == emp.company_id,
-        Employee.is_active == True
+        Employee.is_active == True,
+        sa.func.lower(sa.func.coalesce(Employee.role, '')) != 'admin',
+        (Employee.company_id == emp.company_id) | (Employee.admin_id == emp.admin_id)
     ).all()
-    company_employees.sort(key=lambda x: (100.0 - x.risk_score), reverse=True)
+    
+    company_employees.sort(
+        key=lambda x: (
+            x.xp,
+            x.security_score,
+            x.training_completed_count,
+            x.quiz_completed_count,
+            -x.created_at.timestamp() if x.created_at else 0
+        ),
+        reverse=True
+    )
     
     leaderboard_rank = 1
     for index, item in enumerate(company_employees):
@@ -477,7 +488,11 @@ def get_employee_dashboard(current_user: User = Depends(get_current_user), db: S
     
     for att in attempts:
         quiz = db.query(Quiz).filter(Quiz.id == att.quiz_id).first()
-        quiz_name = quiz.quizName if quiz else "Quiz"
+        quiz_name = "Quiz"
+        if quiz:
+            mod = db.query(TrainingModule).filter(TrainingModule.id == quiz.module_id).first()
+            if mod:
+                quiz_name = f"{mod.title} Quiz"
         activity_log.append({
             "id": f"quiz-{att.id}",
             "type": "quiz",

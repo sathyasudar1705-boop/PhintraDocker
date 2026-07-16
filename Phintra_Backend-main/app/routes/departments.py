@@ -19,16 +19,14 @@ def list_departments(db: Session = Depends(get_db), current_user: User = Depends
     admin_id = get_user_admin_id(db, current_user)
     company_id = get_user_company_id(db, current_user)
 
-    departments = db.query(Department).filter(
-        (Department.company_id == company_id) | (Department.admin_id == admin_id)
-    ).all()
+    departments = db.query(Department).filter(Department.admin_id == admin_id).all()
     results = []
     
     for dept in departments:
         # Calculate headcount
         employees = db.query(Employee).filter(
             Employee.department_id == dept.id,
-            (Employee.company_id == company_id) | (Employee.admin_id == admin_id)
+            Employee.admin_id == admin_id
         ).all()
         headcount = len(employees)
         
@@ -50,12 +48,11 @@ def get_department(id: UUID, db: Session = Depends(get_db), current_user: User =
     admin_id = get_user_admin_id(db, current_user)
     company_id = get_user_company_id(db, current_user)
 
-    dept = db.query(Department).filter(
-        Department.id == id,
-        (Department.company_id == company_id) | (Department.admin_id == admin_id)
-    ).first()
+    dept = db.query(Department).filter(Department.id == id).first()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
+    if dept.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this department")
     return dept
 
 @router.post("", response_model=DepartmentResponse, status_code=status.HTTP_201_CREATED)
@@ -67,9 +64,15 @@ def create_department(dept_in: DepartmentCreate, db: Session = Depends(get_db), 
     if not dept_in.name or not dept_in.name.strip():
         raise HTTPException(status_code=400, detail="Department name is required")
         
+    if company_id:
+        from app.models.company import Company
+        comp = db.query(Company).filter(Company.id == company_id, Company.admin_id == admin_id).first()
+        if not comp:
+            raise HTTPException(status_code=403, detail="Company does not belong to this admin")
+
     existing_dept = db.query(Department).filter(
         Department.name == dept_in.name.strip(),
-        (Department.company_id == company_id) | (Department.admin_id == admin_id)
+        Department.admin_id == admin_id
     ).first()
     if existing_dept:
         raise HTTPException(status_code=400, detail="Department name already exists")
@@ -105,12 +108,11 @@ def update_department(id: UUID, dept_in: DepartmentUpdate, db: Session = Depends
     admin_id = get_user_admin_id(db, current_user)
     company_id = get_user_company_id(db, current_user)
 
-    dept = db.query(Department).filter(
-        Department.id == id,
-        (Department.company_id == company_id) | (Department.admin_id == admin_id)
-    ).first()
+    dept = db.query(Department).filter(Department.id == id).first()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
+    if dept.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this department")
         
     if dept_in.name is not None:
         name_val = dept_in.name.strip()
@@ -119,7 +121,7 @@ def update_department(id: UUID, dept_in: DepartmentUpdate, db: Session = Depends
         existing_dept = db.query(Department).filter(
             Department.name == name_val,
             Department.id != id,
-            (Department.company_id == company_id) | (Department.admin_id == admin_id)
+            Department.admin_id == admin_id
         ).first()
         if existing_dept:
             raise HTTPException(status_code=400, detail="Department name already exists")
@@ -159,12 +161,11 @@ def delete_department(id: UUID, db: Session = Depends(get_db), current_user: Use
     admin_id = get_user_admin_id(db, current_user)
     company_id = get_user_company_id(db, current_user)
 
-    dept = db.query(Department).filter(
-        Department.id == id,
-        (Department.company_id == company_id) | (Department.admin_id == admin_id)
-    ).first()
+    dept = db.query(Department).filter(Department.id == id).first()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
+    if dept.admin_id != admin_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this department")
     dept_name = dept.name
     db.delete(dept)
     db.commit()

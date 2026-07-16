@@ -6,7 +6,13 @@ from app.config import settings
 if settings.DATABASE_URL.startswith("sqlite"):
     engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(settings.DATABASE_URL)
+    engine = create_engine(
+        settings.DATABASE_URL,
+        connect_args={"connect_timeout": 10},
+        pool_pre_ping=True,
+        pool_timeout=20,
+        pool_recycle=300
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for SQLAlchemy models

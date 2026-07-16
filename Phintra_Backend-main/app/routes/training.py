@@ -97,12 +97,11 @@ def get_training_module(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
-    module = db.query(TrainingModule).filter(
-        TrainingModule.id == id,
-        TrainingModule.admin_id == current_admin.id
-    ).first()
+    module = db.query(TrainingModule).filter(TrainingModule.id == id).first()
     if not module:
-        raise HTTPException(status_code=403, detail="Forbidden or training module not found")
+        raise HTTPException(status_code=404, detail="Training module not found")
+    if module.admin_id != current_admin.id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this training module")
     return module
 
 @router.put("/training-modules/{id}", response_model=TrainingModuleResponse)
@@ -112,12 +111,11 @@ def update_training_module(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
-    module = db.query(TrainingModule).filter(
-        TrainingModule.id == id,
-        TrainingModule.admin_id == current_admin.id
-    ).first()
+    module = db.query(TrainingModule).filter(TrainingModule.id == id).first()
     if not module:
-        raise HTTPException(status_code=403, detail="Forbidden or training module not found")
+        raise HTTPException(status_code=404, detail="Training module not found")
+    if module.admin_id != current_admin.id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this training module")
 
     update_data = module_in.dict(exclude_unset=True)
     # Build raw SQL SET clause to avoid duration vs duration_minutes mismatch
@@ -139,12 +137,11 @@ def delete_training_module(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
-    module = db.query(TrainingModule).filter(
-        TrainingModule.id == id,
-        TrainingModule.admin_id == current_admin.id
-    ).first()
+    module = db.query(TrainingModule).filter(TrainingModule.id == id).first()
     if not module:
-        raise HTTPException(status_code=403, detail="Forbidden or training module not found")
+        raise HTTPException(status_code=404, detail="Training module not found")
+    if module.admin_id != current_admin.id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this training module")
     db.delete(module)
     db.commit()
     return {"detail": "Training module successfully deleted"}
@@ -250,30 +247,22 @@ def get_employee_training_modules(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    emp = db.query(Employee).filter(Employee.email == current_user.email).first()
+    emp = db.query(Employee).filter(Employee.id == current_user.id).first()
+    if not emp:
+        emp = db.query(Employee).filter(Employee.email == current_user.email).first()
+    if not emp and current_user.role in ["Admin", "admin", "Security Administrator", "Security Manager", "Manager"]:
+        emp = db.query(Employee).filter(Employee.admin_id == current_user.id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee profile not found")
 
-    assignments = db.query(TrainingAssignment).filter(
-        TrainingAssignment.admin_id == emp.admin_id
-    ).filter(
-        or_(
-            TrainingAssignment.employee_id == emp.id,
-            TrainingAssignment.department_id == emp.department_id,
-            TrainingAssignment.company_id == emp.company_id,
-            (TrainingAssignment.employee_id.is_(None)) & (TrainingAssignment.department_id.is_(None)) & (TrainingAssignment.company_id.is_(None))
-        )
-    ).all()
-
-    module_ids = {a.training_module_id for a in assignments}
-
-    if not module_ids:
-        return []
-
     modules = db.query(TrainingModule).filter(
-        TrainingModule.id.in_(module_ids),
         TrainingModule.admin_id == emp.admin_id
     ).all()
+
+    if not modules:
+        return []
+
+    module_ids = [mod.id for mod in modules]
 
     completions = db.query(TrainingCompletion).filter(
         TrainingCompletion.employee_id == emp.id,
@@ -303,23 +292,19 @@ def complete_training_module(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    emp = db.query(Employee).filter(Employee.email == current_user.email).first()
+    emp = db.query(Employee).filter(Employee.id == current_user.id).first()
+    if not emp:
+        emp = db.query(Employee).filter(Employee.email == current_user.email).first()
+    if not emp and current_user.role in ["Admin", "admin", "Security Administrator", "Security Manager", "Manager"]:
+        emp = db.query(Employee).filter(Employee.admin_id == current_user.id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee profile not found")
 
-    assignment = db.query(TrainingAssignment).filter(
-        TrainingAssignment.training_module_id == id,
-        TrainingAssignment.admin_id == emp.admin_id
-    ).filter(
-        or_(
-            TrainingAssignment.employee_id == emp.id,
-            TrainingAssignment.department_id == emp.department_id,
-            TrainingAssignment.company_id == emp.company_id,
-            (TrainingAssignment.employee_id.is_(None)) & (TrainingAssignment.department_id.is_(None)) & (TrainingAssignment.company_id.is_(None))
-        )
+    module = db.query(TrainingModule).filter(
+        TrainingModule.id == id,
+        TrainingModule.admin_id == emp.admin_id
     ).first()
-
-    if not assignment:
+    if not module:
         raise HTTPException(status_code=403, detail="You do not have access to this training module")
 
     completion = db.query(TrainingCompletion).filter(
