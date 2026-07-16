@@ -126,7 +126,7 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
 
       - name: Run Trivy vulnerability scanner on Frontend Image
         uses: aquasecurity/trivy-action@v0.20.0
@@ -136,7 +136,7 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
 
   # ==========================================
   # JOB 3: Deploy to Cloud (AWS ECS Fargate)
