@@ -1220,22 +1220,22 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {reportedEmails.slice(0, 4).map((report) => (
+                {(reportedEmails || []).slice(0, 4).map((report) => (
                   <tr key={report.id}>
-                    <td style={{ fontWeight: '500' }}>{report.reporter}</td>
-                    <td style={{ color: 'var(--text-light)' }}>{report.senderEmail}</td>
-                    <td>{report.subject}</td>
+                    <td style={{ fontWeight: '500' }}>{report.reporter || report.employeeName || 'Unknown'}</td>
+                    <td style={{ color: 'var(--text-light)' }}>{report.senderEmail || 'N/A'}</td>
+                    <td>{report.subject || 'No Subject'}</td>
                     <td>
-                      <span className={`badge badge-${report.riskLevel.toLowerCase()}`}>
-                        {report.riskLevel}
+                      <span className={`badge badge-${(report.riskLevel || 'Low').toLowerCase()}`}>
+                        {report.riskLevel || 'Low'}
                       </span>
                     </td>
                     <td>
-                      <span className={`badge badge-${report.status.toLowerCase()}`}>
-                        {report.status}
+                      <span className={`badge badge-${(report.status || 'Pending').toLowerCase()}`}>
+                        {report.status || 'Pending'}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-light)' }}>{report.reportedDate}</td>
+                    <td style={{ color: 'var(--text-light)' }}>{report.reportedDate || 'N/A'}</td>
                   </tr>
                 ))}
               </tbody>

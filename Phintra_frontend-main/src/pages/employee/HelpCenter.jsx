@@ -3,6 +3,8 @@ import { useAppContext } from '../../context/AppContext';
 import { faqs } from '../../data/dummyData';
 import { Search, ChevronDown, ChevronUp, Mail, ShieldCheck, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
 import Button from '../../components/common/Button';
+import SmartTextarea from '../../components/common/SmartTextarea';
+import SmartInput from '../../components/common/SmartInput';
 
 const HelpCenter = () => {
   const { supportMessages = [], sendSupportMessage } = useAppContext();
@@ -206,7 +208,7 @@ const HelpCenter = () => {
 
                 <div className="form-group">
                   <label className="form-label">Subject of Inquiry</label>
-                  <input
+                  <SmartInput
                     type="text"
                     className="form-control"
                     placeholder="e.g. Question on 2FA policy"
@@ -219,7 +221,7 @@ const HelpCenter = () => {
 
                 <div className="form-group">
                   <label className="form-label">Detailed Message</label>
-                  <textarea
+                  <SmartTextarea
                     className="form-control"
                     rows="5"
                     placeholder="Type your message to corporate IT security officers..."

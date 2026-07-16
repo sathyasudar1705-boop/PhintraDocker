@@ -28,7 +28,7 @@ const LandingPageBuilder = () => {
       buttonText: "Verify & Continue",
       bgColor: '#ffffff',
       accentColor: '#1a73e8',
-      placeholderUser: 'username@gmail.com'
+      placeholderUser: 'username@company.com'
     },
     {
       id: 3,

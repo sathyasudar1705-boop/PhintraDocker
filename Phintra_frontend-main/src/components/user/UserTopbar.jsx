@@ -8,6 +8,7 @@ import {
   Menu, X, ShieldCheck, Zap, Flame, Bell, ChevronDown, Award
 } from 'lucide-react';
 import phintraLogo from '../../assets/phintra_logo.png';
+import phintraSentinel from '../../assets/phintra_sentinel.png';
 
 const NAV_ITEMS = [
   { name: 'Dashboard',     path: '/user/dashboard',   icon: LayoutDashboard,
@@ -91,7 +92,7 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
         height: '70px',
         background: 'rgba(255, 255, 255, 0.85)',
         backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
+        borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -100,7 +101,7 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
         top: 0,
         zIndex: 100,
         flexShrink: 0,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.01)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
       }}
     >
       {/* Scan-line overlay — clipped to header bounds only */}
@@ -115,25 +116,13 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div
-            style={{
-              width: '54px', height: '54px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, overflow: 'visible',
-            }}
-          >
-            <img src={phintraLogo} alt="Phintra Logo" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
-          </div>
-          <div className="emp-topbar-logo-text">
-            <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.1 }}>Phintra</div>
-            <div style={{ fontSize: '9px', fontWeight: '700', color: '#06B6D4', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Security Hub</div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <img src={phintraSentinel} alt="Phintra Sentinel" style={{ width: '135px', height: 'auto', maxHeight: '42px', objectFit: 'contain' }} />
         </div>
       </div>
 
       {/* Center: Desktop Navigation Links */}
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }} className="emp-desktop-nav">
+      <nav style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="emp-desktop-nav">
         {NAV_ITEMS.map(item => {
           const active = isActive(item.path);
           const isTrainings = item.name === 'Trainings';
@@ -144,21 +133,11 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
                 <Link
                   to={item.path}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px 32px 8px 16px',
-                    borderRadius: '99px',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    color: active ? item.color : '#64748b',
-                    textDecoration: 'none',
-                    position: 'relative',
-                    transition: 'color 0.2s ease',
-                    background: active ? item.colorBg : 'transparent',
-                    border: active ? `1px solid ${item.colorBorder}` : '1px solid transparent',
+                    '--btn-color': item.color,
+                    '--btn-shadow': item.colorHover,
+                    padding: '5px 28px 5px 12px',
                   }}
-                  className="emp-nav-link"
+                  className={`emp-nav-link ${active ? 'active-3d' : 'inactive-3d'}`}
                   data-color={item.color}
                   data-glow={item.colorGlow}
                 >
@@ -196,7 +175,7 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
                   }}
                   style={{
                     position: 'absolute',
-                    right: '10px',
+                    right: '8px',
                     background: 'transparent',
                     border: 'none',
                     cursor: 'pointer',
@@ -204,7 +183,7 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: '2px',
-                    color: active ? item.color : '#64748b',
+                    color: active ? '#ffffff' : '#64748b',
                     zIndex: 3
                   }}
                 >
@@ -266,21 +245,11 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
               key={item.path}
               to={item.path}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                borderRadius: '99px',
-                fontSize: '13px',
-                fontWeight: '700',
-                color: active ? item.color : '#64748b',
-                textDecoration: 'none',
-                position: 'relative',
-                transition: 'color 0.2s ease',
-                background: active ? item.colorBg : 'transparent',
-                border: active ? `1px solid ${item.colorBorder}` : '1px solid transparent',
+                '--btn-color': item.color,
+                '--btn-shadow': item.colorHover,
+                padding: '5px 12px',
               }}
-              className="emp-nav-link"
+              className={`emp-nav-link ${active ? 'active-3d' : 'inactive-3d'}`}
               data-color={item.color}
               data-glow={item.colorGlow}
             >
@@ -320,8 +289,8 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
-            background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-            border: '1px solid #bfdbfe',
+            background: 'rgba(37, 99, 235, 0.12)',
+            border: '1px solid rgba(37, 99, 235, 0.3)',
             padding: '6px 14px', borderRadius: '99px',
             position: 'relative', overflow: 'hidden'
           }}
@@ -333,35 +302,13 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 3 }}
             style={{ display: 'flex' }}
           >
-            <Zap size={13} color="#2563eb" fill="#2563eb" />
+            <Zap size={13} color="#3b82f6" fill="#3b82f6" />
           </motion.span>
-          <span style={{ fontSize: '12px', fontWeight: '800', color: '#1d4ed8' }}>{xp} XP</span>
-          <span style={{ fontSize: '10px', color: '#60a5fa', fontWeight: '600' }} className="emp-topbar-lvl">· Lv.{level}</span>
+          <span style={{ fontSize: '12px', fontWeight: '800', color: '#2563eb' }}>{xp} XP</span>
+          <span style={{ fontSize: '10px', color: '#1d4ed8', fontWeight: '600' }} className="emp-topbar-lvl">· Lv.{level}</span>
         </motion.div>
 
-        {/* Streak Badge */}
-        {streak > 0 && (
-          <motion.div
-            animate={{ scale: [1, 1.04, 1] }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
-              border: '1px solid #fde68a',
-              padding: '6px 12px', borderRadius: '99px'
-            }}
-            className="emp-topbar-streak"
-          >
-            <motion.span
-              animate={{ y: [0, -2, 0], scale: [1, 1.2, 1] }}
-              transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 }}
-              style={{ display: 'flex' }}
-            >
-              <Flame size={13} color="#f59e0b" fill="#f59e0b" />
-            </motion.span>
-            <span style={{ fontSize: '12px', fontWeight: '800', color: '#d97706' }}>{streak}d</span>
-          </motion.div>
-        )}
+
 
         {/* Notifications Icon */}
         <motion.button
@@ -370,13 +317,13 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
           onClick={onNotificationsClick}
           style={{
             position: 'relative', width: '38px', height: '38px',
-            background: '#f8fafc', border: '1px solid #e2e8f0',
+            background: '#f1f5f9', border: '1px solid #cbd5e1',
             borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', transition: 'all 0.15s ease', flexShrink: 0
           }}
           className="emp-topbar-icon-btn"
         >
-          <Bell size={17} color="#64748b" />
+          <Bell size={17} color="#475569" />
           {unreadCount > 0 && (
             <>
               <span style={{
@@ -385,7 +332,7 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
                 background: '#ef4444', color: '#fff',
                 fontSize: '9px', fontWeight: '800',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '2px solid #fff', zIndex: 2
+                border: '2px solid #ffffff', zIndex: 2
               }}>{unreadCount}</span>
               <span className="bell-ping" aria-hidden="true" />
             </>
@@ -418,7 +365,7 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
               </motion.div>
               <span className="avatar-online-dot" aria-hidden="true" />
             </div>
-            <ChevronDown size={14} color="#64748b" style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            <ChevronDown size={14} color="#475569" style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
           </button>
 
           <AnimatePresence>
@@ -582,6 +529,9 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
       </AnimatePresence>
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bungee+Tint&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;900&display=swap');
+
         /* ─── Gaming Animations ─── */
         @keyframes scanline {
           0%   { transform: translateX(-100%); }
@@ -645,9 +595,59 @@ const UserTopbar = ({ onSearchClick, onNotificationsClick }) => {
           animation: onlinePulse 2s ease-in-out infinite;
         }
 
-        /* Nav link hover */
-        .emp-nav-link:hover {
-          opacity: 0.85;
+        /* ─── 3D Cartoon Navigation Buttons (Fredoka Font Style) ─── */
+        .emp-nav-link {
+          font-family: 'Fredoka', 'Oxanium', sans-serif !important;
+          font-size: 11px !important;
+          font-weight: 900 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.5px !important;
+          transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+          box-sizing: border-box !important;
+          cursor: pointer !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          border-radius: 99px !important;
+          text-decoration: none !important;
+          position: relative !important;
+        }
+
+        /* Active 3D button */
+        .emp-nav-link.active-3d {
+          color: #ffffff !important;
+          background: var(--btn-color) !important;
+          border: 1.5px solid rgba(255, 255, 255, 0.25) !important;
+          border-bottom: 3.5px solid var(--btn-shadow) !important;
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2), inset 0 1.5px 0 rgba(255, 255, 255, 0.4) !important;
+          text-shadow: 0 1.5px 0 var(--btn-shadow) !important;
+          transform: translateY(-1.5px);
+        }
+        .emp-nav-link.active-3d:active {
+          border-bottom-width: 1px !important;
+          transform: translateY(1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        }
+
+        /* Inactive 3D button */
+        .emp-nav-link.inactive-3d {
+          color: #475569 !important;
+          background: #f1f5f9 !important;
+          border: 1.5px solid #cbd5e1 !important;
+          border-bottom: 2.5px solid #94a3b8 !important;
+          box-shadow: 0 2px 3px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+          text-shadow: none !important;
+          transform: translateY(0px);
+        }
+        .emp-nav-link.inactive-3d:hover {
+          color: #0f172a !important;
+          background: #e2e8f0 !important;
+          border-bottom-color: #64748b !important;
+          transform: translateY(-1px);
+        }
+        .emp-nav-link.inactive-3d:active {
+          border-bottom-width: 1px !important;
+          transform: translateY(1px);
         }
 
         .emp-dropdown-link:hover, .emp-mobile-link:hover {

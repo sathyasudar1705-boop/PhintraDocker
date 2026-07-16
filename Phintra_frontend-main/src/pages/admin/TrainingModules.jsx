@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import SmartTextarea from '../../components/common/SmartTextarea';
+import SmartInput from '../../components/common/SmartInput';
 import api from '../../services/api';
 import { useAppContext } from '../../context/AppContext';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -409,17 +411,17 @@ const AdminModules = () => {
               <AlertBox msg={error}   type="error" />
               <AlertBox msg={success} type="success" />
               <FormField label="Module Title *">
-                <input style={inp} type="text" placeholder="e.g. Recognizing Credential Theft"
+                <SmartInput style={inp} type="text" placeholder="e.g. Recognizing Credential Theft"
                   value={addTitle} onChange={e => setAddTitle(e.target.value)} required />
               </FormField>
               <FormField label="Description">
-                <textarea style={{ ...inp, resize: 'vertical', minHeight: '80px' }}
+                <SmartTextarea style={{ ...inp, resize: 'vertical', minHeight: '80px' }}
                   placeholder="Brief overview of what the course covers…"
                   value={addDesc} onChange={e => setAddDesc(e.target.value)} rows={3} />
               </FormField>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <FormField label="Category">
-                  <input style={inp} type="text" placeholder="e.g. Phishing, Passwords"
+                  <SmartInput style={inp} type="text" placeholder="e.g. Phishing, Passwords"
                     value={addCategory} onChange={e => setAddCategory(e.target.value)} />
                 </FormField>
                 <FormField label="Duration (mins) *">
@@ -465,16 +467,16 @@ const AdminModules = () => {
               <AlertBox msg={error}   type="error" />
               <AlertBox msg={success} type="success" />
               <FormField label="Module Title *">
-                <input style={inp} type="text" value={editTitle}
+                <SmartInput style={inp} type="text" value={editTitle}
                   onChange={e => setEditTitle(e.target.value)} required />
               </FormField>
               <FormField label="Description">
-                <textarea style={{ ...inp, resize: 'vertical', minHeight: '80px' }}
+                <SmartTextarea style={{ ...inp, resize: 'vertical', minHeight: '80px' }}
                   value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={3} />
               </FormField>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <FormField label="Category">
-                  <input style={inp} type="text" value={editCategory}
+                  <SmartInput style={inp} type="text" value={editCategory}
                     onChange={e => setEditCategory(e.target.value)} />
                 </FormField>
                 <FormField label="Duration (mins) *">

@@ -48,15 +48,8 @@ export const AppProvider = ({ children }) => {
   const [awarenessPages, setAwarenessPages] = useState([]);
 
   // Local-only / Fallback States
-  const [trainingModules, setTrainingModules] = useState(() => {
-    const saved = localStorage.getItem('pg_modules');
-    return saved ? JSON.parse(saved) : [...initialTrainingModules];
-  });
-
-  const [quizzes, setQuizzes] = useState(() => {
-    const saved = localStorage.getItem('pg_quizzes');
-    return saved ? JSON.parse(saved) : [...initialQuizzes];
-  });
+  const [trainingModules, setTrainingModules] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
 
   const [leaderboard, setLeaderboard] = useState(() => {
     const saved = localStorage.getItem('pg_leaderboard');
@@ -98,6 +91,23 @@ export const AppProvider = ({ children }) => {
           api.get('/employees')
             .then(res => setEmployees(res.data))
             .catch(e => console.warn("Could not fetch employees:", e))
+        );
+        promises.push(
+          api.get('/leaderboard').then(res => {
+            const raw = res.data?.leaderboard || [];
+            const mappedLb = raw.map(item => ({
+              rank: item.rank,
+              name: item.name,
+              department: item.department,
+              securityScore: item.security_score,
+              badges: item.badges || [],
+              percentile: item.percentile,
+              total_xp: item.total_xp,
+              reports_count: item.reports_count,
+              completion_percentage: item.completion_percentage
+            }));
+            setLeaderboard(mappedLb);
+          }).catch(e => console.warn("Could not fetch admin company leaderboard:", e))
         );
         promises.push(
           api.get('/campaigns')
@@ -175,6 +185,31 @@ export const AppProvider = ({ children }) => {
             .catch(e => console.warn("Could not fetch awareness pages:", e))
         );
         
+        promises.push(
+          api.get('/training-modules')
+            .then(res => {
+              const mappedModules = (res.data || []).map(m => ({
+                id: m.id,
+                name: m.title || m.name,
+                description: m.description,
+                difficulty: m.difficulty || "Medium",
+                duration: typeof m.duration === 'number' ? `${m.duration} mins` : (m.duration || "15 mins"),
+                enrollmentCount: m.enrollment_count || 0,
+                completionStats: m.completion_rate || 0,
+                progress: 0,
+                isCompleted: false,
+                category: m.category || "Phishing"
+              }));
+              setTrainingModules(mappedModules);
+            })
+            .catch(e => console.warn("Could not fetch admin training modules:", e))
+        );
+        promises.push(
+          api.get('/quizzes')
+            .then(res => setQuizzes(res.data || []))
+            .catch(e => console.warn("Could not fetch admin quizzes:", e))
+        );
+
         if (userRole === 'Security Administrator') {
           promises.push(
             api.get('/audit-logs')
@@ -192,7 +227,10 @@ export const AppProvider = ({ children }) => {
               trainingCompletion: res.data.training_completion,
               unreadMessageCount: res.data.unread_message_count,
               companyName: res.data.company_name,
-              companyAddress: res.data.company_address
+              companyAddress: res.data.company_address,
+              streakDays: res.data.streak_days ?? 0,
+              isNewJoiner: res.data.is_new_joiner ?? false,
+              rewards_balance: res.data.rewards_balance ?? 0
             }));
 
             if (res.data.certificates) {
@@ -204,6 +242,20 @@ export const AppProvider = ({ children }) => {
                 verification_code: c.verification_code
               }));
               setCertificates(mappedCerts);
+            }
+
+            if (res.data.reported_emails) {
+              const mappedReports = res.data.reported_emails.map(r => ({
+                id: r.id,
+                subject: r.subject || "No Subject",
+                sender: r.sender || "unknown@sender.com",
+                senderEmail: r.sender || "unknown@sender.com",
+                status: r.status || "Pending",
+                reportedDate: r.reported_at ? r.reported_at.split('T')[0] : new Date().toISOString().split('T')[0],
+                createdAt: r.reported_at
+              }));
+              mappedReports.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+              setReportedEmails(mappedReports);
             }
           }).catch(e => console.warn("Could not fetch employee dashboard data:", e))
         );
@@ -262,6 +314,11 @@ export const AppProvider = ({ children }) => {
             .then(res => setSupportMessages(res.data))
             .catch(e => console.warn("Could not fetch employee support messages:", e))
         );
+        promises.push(
+          api.get('/quizzes')
+            .then(res => setQuizzes(res.data || []))
+            .catch(e => console.warn("Could not fetch employee quizzes:", e))
+        );
       }
 
       await Promise.all(promises);
@@ -271,20 +328,23 @@ export const AppProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    localStorage.removeItem('pg_modules');
+    localStorage.removeItem('pg_quizzes');
+  }, []);
+
+  useEffect(() => {
     fetchData();
   }, [isAuthenticated, userRole]);
 
   // Sync remaining local states to LocalStorage on updates
   useEffect(() => {
-    localStorage.setItem('pg_modules', JSON.stringify(trainingModules));
-    localStorage.setItem('pg_quizzes', JSON.stringify(quizzes));
     localStorage.setItem('pg_leaderboard', JSON.stringify(leaderboard));
     localStorage.setItem('pg_simulations', JSON.stringify(simulations));
     localStorage.setItem('pg_certificates', JSON.stringify(certificates));
     localStorage.setItem('pg_role_permissions', JSON.stringify(rolePermissions));
     localStorage.setItem('pg_campaign_events', JSON.stringify(campaignEvents));
   }, [
-    trainingModules, quizzes, leaderboard, simulations, certificates, 
+    leaderboard, simulations, certificates, 
     rolePermissions, campaignEvents
   ]);
 
@@ -575,10 +635,11 @@ export const AppProvider = ({ children }) => {
   const reportEmail = async (emailReport) => {
     try {
       const response = await api.post('/reported-emails', {
-        employee_id: currentUser.employee_id,
-        subject: emailReport.subject,
-        sender: emailReport.sender || 'unknown@sender.com',
-        status: 'Pending'
+        employee_id: currentUser.employee_id || currentUser.id,
+        email_subject: emailReport.subject,
+        email_sender: emailReport.sender || 'unknown@sender.com',
+        email_body: emailReport.body || "",
+        report_reason: emailReport.reason || "Suspicious Link"
       });
 
       // Also update simulations list locally for current user
@@ -641,15 +702,34 @@ export const AppProvider = ({ children }) => {
       console.error("Failed to mark all notifications as read:", error);
     }
   };
+
   // Modules & Quizzes
-  const addQuiz = (newQuiz) => {
-    const formattedQuiz = {
-      id: Date.now(),
-      createdDate: new Date().toISOString().split('T')[0],
-      ...newQuiz
-    };
-    setQuizzes(prev => [...prev, formattedQuiz]);
-    addAuditLog("Create Quiz", `Published '${newQuiz.quizName}' quiz`);
+  const addQuiz = async (newQuiz) => {
+    try {
+      // 1. Create the quiz
+      const quizRes = await api.post('/quizzes', {
+        module_id: newQuiz.moduleId,
+        passing_score: newQuiz.passingScore
+      });
+      const createdQuiz = quizRes.data;
+
+      // 2. Create all questions for this quiz
+      const questionsPromises = (newQuiz.questions || []).map(q => {
+        return api.post(`/quizzes/${createdQuiz.id}/questions`, {
+          question_text: q.questionText,
+          options: q.options,
+          correct_option_index: q.correctIndex !== undefined ? q.correctIndex : q.correct_option_index
+        });
+      });
+      await Promise.all(questionsPromises);
+
+      // 3. Refresh data to pull the complete quiz structure from DB
+      await fetchData();
+      addAuditLog("Create Quiz", `Published '${newQuiz.quizName}' quiz`);
+    } catch (error) {
+      console.error("Failed to add quiz to database:", error);
+      throw error;
+    }
   };
 
   const deleteQuiz = (id) => {
@@ -705,9 +785,20 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const updateProfile = (data) => {
-    setCurrentUser(prev => ({ ...prev, ...data }));
-    addAuditLog("Update Profile", "Modified personal biography details");
+  const updateProfile = async (data) => {
+    try {
+      await api.put('/me/profile', null, {
+        params: {
+          name: data.name,
+          email: data.email,
+          department_name: data.department || currentUser?.department || 'Security Operations'
+        }
+      });
+      setCurrentUser(prev => ({ ...prev, ...data }));
+      addAuditLog("Update Profile", "Modified personal biography details");
+    } catch (error) {
+      console.error("Failed to update profile on backend:", error);
+    }
   };
 
   // Roles & Permissions matrix state save

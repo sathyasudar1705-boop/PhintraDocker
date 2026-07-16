@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Users, Send, Building2, FileText, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../../context/AppContext';
 
 const CommandPaletteModal = ({ isOpen, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef(null);
   const navigate = useNavigate();
+  const { employees, campaigns, departments, emailTemplates } = useAppContext();
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -27,15 +29,20 @@ const CommandPaletteModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  // Dummy global search results
+  // Dynamic global search results
   const allResults = [
-    { id: 1, type: 'Employee', title: 'John Doe', subtitle: 'Engineering Dept', icon: Users, path: '/admin/employees' },
-    { id: 2, type: 'Campaign', title: 'Q3 Phishing Simulation', subtitle: 'Active - 500 users', icon: Send, path: '/admin/campaigns' },
-    { id: 3, type: 'Department', title: 'Finance', subtitle: 'Risk Level: High', icon: Building2, path: '/admin/departments' },
-    { id: 4, type: 'Template', title: 'Urgent Password Reset', subtitle: 'Click Rate: 12%', icon: FileText, path: '/admin/templates' },
-    { id: 5, type: 'Threat', title: 'Suspicious Login Attempt', subtitle: 'Severity: High', icon: AlertTriangle, path: '/admin/threat-feed' },
-    { id: 6, type: 'Employee', title: 'Jane Smith', subtitle: 'HR Dept', icon: Users, path: '/admin/employees' },
-    { id: 7, type: 'Campaign', title: 'Holiday Security Awareness', subtitle: 'Draft', icon: Send, path: '/admin/campaigns' },
+    ...(employees || []).map(e => ({
+      id: `emp-${e.id}`, type: 'Employee', title: `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Employee', subtitle: e.email || e.department_name, icon: Users, path: '/admin/employees'
+    })),
+    ...(campaigns || []).map(c => ({
+      id: `camp-${c.id}`, type: 'Campaign', title: c.name, subtitle: c.status, icon: Send, path: '/admin/campaigns'
+    })),
+    ...(departments || []).map(d => ({
+      id: `dept-${d.id}`, type: 'Department', title: d.name, subtitle: d.description || 'Department', icon: Building2, path: '/admin/departments'
+    })),
+    ...(emailTemplates || []).map(t => ({
+      id: `tpl-${t.id}`, type: 'Template', title: t.name, subtitle: t.category, icon: FileText, path: '/admin/templates'
+    }))
   ];
 
   const filteredResults = searchQuery.trim() === '' 

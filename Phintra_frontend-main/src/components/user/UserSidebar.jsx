@@ -7,6 +7,7 @@ import {
   LayoutDashboard, BookOpen, Mail, Trophy, MessageCircle, Settings, LogOut, X, ShieldCheck, Zap
 } from 'lucide-react';
 import phintraLogo from '../../assets/phintra_logo.png';
+import phintraSentinel from '../../assets/phintra_sentinel.png';
 
 const NAV_ITEMS = [
   { name: 'Dashboard',     path: '/user/dashboard',   icon: LayoutDashboard,
@@ -57,22 +58,8 @@ const UserSidebar = ({ mobileMenuOpen, setMobileMenuOpen }) => {
   const SidebarContent = ({ onItemClick }) => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Brand */}
-      <div style={{ padding: '28px 20px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div
-            style={{
-              width: '54px', height: '54px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, overflow: 'visible',
-            }}
-          >
-            <img src={phintraLogo} alt="Phintra Logo" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
-          </div>
-          <div>
-            <div style={{ fontSize: '17px', fontWeight: '800', color: '#fff', letterSpacing: '-0.02em', lineHeight: 1.1 }}>Phintra</div>
-            <div style={{ fontSize: '9px', fontWeight: '700', color: '#06B6D4', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '1px' }}>Security Hub</div>
-          </div>
-        </div>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <img src={phintraSentinel} alt="Phintra Sentinel" style={{ width: '160px', height: 'auto', maxHeight: '72px', objectFit: 'contain' }} />
       </div>
 
       {/* User Card */}

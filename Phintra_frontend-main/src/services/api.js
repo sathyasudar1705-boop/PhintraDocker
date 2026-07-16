@@ -14,7 +14,10 @@ api.interceptors.request.use(
                     window.location.pathname === '/login' || 
                     window.location.pathname === '/register' || 
                     window.location.pathname === '/forgot-password';
-    const token = localStorage.getItem(isAdmin ? 'adminToken' : 'employeeToken');
+    let token = localStorage.getItem(isAdmin ? 'adminToken' : 'employeeToken');
+    if (!token) {
+      token = localStorage.getItem('phintra_token');
+    }
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -37,6 +40,10 @@ api.interceptors.response.use(
         localStorage.removeItem('adminAuth');
         localStorage.removeItem('adminRole');
         localStorage.removeItem('adminUser');
+        localStorage.removeItem('phintra_token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('portal_type');
+        localStorage.removeItem('user');
         
         // Redirect to admin login if not already on the login/register paths
         const currentPath = window.location.pathname;
@@ -48,6 +55,10 @@ api.interceptors.response.use(
         localStorage.removeItem('employeeAuth');
         localStorage.removeItem('employeeRole');
         localStorage.removeItem('employeeUser');
+        localStorage.removeItem('phintra_token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('portal_type');
+        localStorage.removeItem('user');
         
         // Redirect to user login if not already on the login paths
         const currentPath = window.location.pathname;

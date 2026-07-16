@@ -59,7 +59,7 @@ const EmployeeSidebar = () => {
     }}>
       {/* Top Brand Logo */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0px' }}>
-        <img src={phintraLogo} alt="Phintra Logo" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+        <img src={phintraLogo} alt="Phintra Logo" style={{ width: '80px', height: '80px', objectFit: 'contain', marginLeft: '-12px' }} />
       </div>
 
       {/* Nav Menu */}

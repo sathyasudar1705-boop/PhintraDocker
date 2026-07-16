@@ -21,7 +21,7 @@ const EmployeeLayout = () => {
   }, []);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F8FAFC', backgroundAttachment: 'fixed', backgroundImage: 'linear-gradient(180deg, #F8FAFC 0%, #EEF6FF 45%, #F8FAFC 100%)' }}>
       
       {/* Gamified compact sidebar */}
       <EmployeeSidebar />
@@ -57,6 +57,25 @@ const EmployeeLayout = () => {
 
       {/* Simple styling rules injected via a style block to handle layout display toggle */}
       <style>{`
+        .main-content-layout {
+          position: relative;
+        }
+        .main-content-layout::before {
+          content: "";
+          position: absolute;
+          top: 0; left: 0; right: 0; bottom: 0;
+          pointer-events: none;
+          background-image: linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+          background-size: 40px 40px;
+          z-index: 0;
+        }
+        .app-main-content::-webkit-scrollbar {
+          display: none;
+        }
+        .app-main-content {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
         @media (max-width: 768px) {
           .main-content-layout {
             margin-left: 16px !important;

@@ -19,21 +19,31 @@ export const MicrosoftLoginButton = ({ onError }) => {
         throw new Error('Microsoft login parameters are not configured on the server.');
       }
 
-      // 2. Generate PKCE params
+      // 2. Clear old state before starting new login process to prevent conflicts
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminAuth');
+      localStorage.removeItem('adminRole');
+      localStorage.removeItem('adminUser');
+      localStorage.removeItem('employeeToken');
+      localStorage.removeItem('employeeAuth');
+      localStorage.removeItem('employeeRole');
+      localStorage.removeItem('employeeUser');
+
+      // 3. Generate PKCE params
       const codeVerifier = generateCodeVerifier();
       const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-      // 3. Store params and portal context in sessionStorage
+      // 4. Store verifier and context in sessionStorage
       sessionStorage.setItem('pkce_code_verifier', codeVerifier);
       
-      const portalType = window.location.pathname.includes('/admin') ? 'admin' : 'employee';
+      const portalType = (window.location.pathname.includes('/admin') || window.location.pathname === '/login') ? 'admin' : 'employee';
       sessionStorage.setItem('sso_portal_type', portalType);
 
       // Generate random state
       const randomState = Math.random().toString(36).substring(2, 15);
       sessionStorage.setItem('pkce_state', randomState);
 
-      // 4. Construct Microsoft Authorization URL
+      // 5. Construct Microsoft Authorization URL
       const queryParams = new URLSearchParams({
         client_id: client_id,
         response_type: 'code',
@@ -47,7 +57,7 @@ export const MicrosoftLoginButton = ({ onError }) => {
 
       const authUrl = `${authorization_endpoint}?${queryParams.toString()}`;
 
-      // 5. Redirect browser to Microsoft Online
+      // 6. Redirect browser to Microsoft Online
       window.location.href = authUrl;
     } catch (err) {
       console.error('Microsoft login redirection failed:', err);
@@ -88,7 +98,7 @@ export const MicrosoftLoginButton = ({ onError }) => {
         <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
         <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
       </svg>
-      {loading ? "Connecting to Microsoft..." : "Continue with Microsoft"}
+      {loading ? "Redirecting to Microsoft..." : "Continue with Microsoft"}
     </button>
   );
 };

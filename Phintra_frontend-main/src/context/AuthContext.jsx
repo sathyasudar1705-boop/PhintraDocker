@@ -24,15 +24,17 @@ export const AuthProvider = ({ children }) => {
   const [employeeUser, setEmployeeUser] = useState(() => {
     const saved = localStorage.getItem('employeeUser');
     return saved ? JSON.parse(saved) : {
-      name: 'Alex Chen',
+      name: 'New Employee',
       email: 'employee@phintra.com',
       role: 'Employee',
       department: 'Finance',
-      streakDays: 4,
-      securityScore: 78,
-      rewards_balance: 1010
+      streakDays: 0,
+      securityScore: 0,
+      rewards_balance: 0
     };
   });
+
+  const [isInitializing, setIsInitializing] = useState(true);
 
 
 
@@ -47,6 +49,27 @@ export const AuthProvider = ({ children }) => {
     if (role === 'Security Administrator') return 'Admin';
     if (role === 'Security Manager') return 'Manager';
     return 'Employee';
+  };
+
+  const clearAllAuthStorage = () => {
+    setAdminAuth(false);
+    setAdminRole('Security Administrator');
+    setAdminUser(null);
+    setEmployeeAuth(false);
+    setEmployeeRole('Employee');
+    setEmployeeUser(null);
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminAuth');
+    localStorage.removeItem('adminRole');
+    localStorage.removeItem('adminUser');
+    localStorage.removeItem('employeeToken');
+    localStorage.removeItem('employeeAuth');
+    localStorage.removeItem('employeeRole');
+    localStorage.removeItem('employeeUser');
+    localStorage.removeItem('phintra_token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('portal_type');
+    localStorage.removeItem('user');
   };
 
   const logoutAdmin = async () => {
@@ -66,6 +89,14 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('adminAuth');
     localStorage.removeItem('adminRole');
     localStorage.removeItem('adminUser');
+    
+    // Clear generic keys if admin was active portal
+    if (localStorage.getItem('portal_type') === 'admin') {
+      localStorage.removeItem('phintra_token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('portal_type');
+      localStorage.removeItem('user');
+    }
   };
 
   const logoutEmployee = async () => {
@@ -85,12 +116,21 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('employeeAuth');
     localStorage.removeItem('employeeRole');
     localStorage.removeItem('employeeUser');
+    
+    // Clear generic keys if employee was active portal
+    if (localStorage.getItem('portal_type') === 'employee') {
+      localStorage.removeItem('phintra_token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('portal_type');
+      localStorage.removeItem('user');
+    }
   };
 
   // On mount: validate existing token based on path context
   useEffect(() => {
     const validateToken = async () => {
       if (window.location.pathname === '/auth/microsoft/callback') {
+        setIsInitializing(false);
         return;
       }
       // Intercept URL dashboard token parameter for passwordless auto-login
@@ -142,6 +182,7 @@ export const AuthProvider = ({ children }) => {
           const newSearch = urlParams.toString();
           const newPath = window.location.pathname + (newSearch ? `?${newSearch}` : '');
           window.history.replaceState({}, '', newPath);
+          setIsInitializing(false);
           return;
         } catch (error) {
           console.error("Dashboard secure token verification failed:", error);
@@ -157,9 +198,29 @@ export const AuthProvider = ({ children }) => {
                       window.location.pathname === '/login' || 
                       window.location.pathname === '/register' || 
                       window.location.pathname === '/forgot-password';
+                      
+      if (isAdmin) {
+        localStorage.removeItem('employeeToken');
+        localStorage.removeItem('employeeAuth');
+        localStorage.removeItem('employeeRole');
+        localStorage.removeItem('employeeUser');
+        setEmployeeAuth(false);
+        setEmployeeRole('Employee');
+        setEmployeeUser(null);
+      } else {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminAuth');
+        localStorage.removeItem('adminRole');
+        localStorage.removeItem('adminUser');
+        setAdminAuth(false);
+        setAdminRole('Security Administrator');
+        setAdminUser(null);
+      }
+
       const token = localStorage.getItem(isAdmin ? 'adminToken' : 'employeeToken');
       if (!token) {
         if (isAdmin) logoutAdmin(); else logoutEmployee();
+        setIsInitializing(false);
         return;
       }
       try {
@@ -206,6 +267,8 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error("Session token validation failed:", error);
         if (isAdmin) logoutAdmin(); else logoutEmployee();
+      } finally {
+        setIsInitializing(false);
       }
     };
 
@@ -235,6 +298,15 @@ export const AuthProvider = ({ children }) => {
   }, [employeeAuth, employeeRole, employeeUser]);
 
   const login = async (email, password) => {
+    // Clear employee session
+    localStorage.removeItem('employeeToken');
+    localStorage.removeItem('employeeAuth');
+    localStorage.removeItem('employeeRole');
+    localStorage.removeItem('employeeUser');
+    setEmployeeAuth(false);
+    setEmployeeRole('Employee');
+    setEmployeeUser(null);
+
     try {
       // /auth/login uses OAuth2PasswordRequestForm
       const formData = new URLSearchParams();
@@ -276,6 +348,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const employeeLogin = async (email, password) => {
+    // Clear admin session
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminAuth');
+    localStorage.removeItem('adminRole');
+    localStorage.removeItem('adminUser');
+    setAdminAuth(false);
+    setAdminRole('Security Administrator');
+    setAdminUser(null);
+
     try {
       const response = await api.post('/auth/employee-login', {
         email: email.trim(),
@@ -283,24 +364,32 @@ export const AuthProvider = ({ children }) => {
       });
 
       const { access_token, employee } = response.data;
-      localStorage.setItem('employeeToken', access_token);
-
-      const mappedRole = 'Employee';
-
-      setEmployeeAuth(true);
-      setEmployeeRole(mappedRole);
-      setEmployeeUser({
+      const employeeUserData = {
         employee_id: employee.employee_id || employee.id,
         name: employee.name,
         email: employee.email,
-        role: mappedRole,
+        role: 'Employee',
         department: employee.department,
         streakDays: 4,
         securityScore: employee.personal_score || 80,
         rewards_balance: employee.rewards_balance || 1010
-      });
+      };
 
-      return { success: true, role: mappedRole };
+      // Write directly to local storage synchronously before setting context states
+      localStorage.setItem('phintra_token', access_token);
+      localStorage.setItem('role', 'Employee');
+      localStorage.setItem('portal_type', 'employee');
+      localStorage.setItem('user', JSON.stringify(employeeUserData));
+      localStorage.setItem('employeeToken', access_token);
+      localStorage.setItem('employeeAuth', 'true');
+      localStorage.setItem('employeeRole', 'Employee');
+      localStorage.setItem('employeeUser', JSON.stringify(employeeUserData));
+
+      setEmployeeAuth(true);
+      setEmployeeRole('Employee');
+      setEmployeeUser(employeeUserData);
+
+      return { success: true, role: 'Employee' };
     } catch (error) {
       console.error("Employee login failure:", error);
       const errMsg = error.response?.data?.detail || 'Incorrect credentials or server connection failed.';
@@ -366,6 +455,8 @@ export const AuthProvider = ({ children }) => {
 
   const microsoftLogin = async (accessToken, idToken, portalType) => {
     try {
+      clearAllAuthStorage();
+
       const response = await api.post('/auth/microsoft-login', {
         access_token: accessToken,
         id_token: idToken,
@@ -373,9 +464,12 @@ export const AuthProvider = ({ children }) => {
       });
       
       const { access_token, role, user, employee, redirect_path } = response.data;
-      
-      if (portalType === 'admin') {
-        const mappedRole = mapBackendRoleToFrontend(role);
+      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+
+      const mappedRole = mapBackendRoleToFrontend(role);
+      const isBackendAdmin = mappedRole === 'Security Administrator' || mappedRole === 'Security Manager';
+
+      if (isBackendAdmin) {
         const adminUserData = {
           employee_id: user ? (user.employee_id || user.id) : null,
           name: user ? user.name : 'Admin',
@@ -386,7 +480,11 @@ export const AuthProvider = ({ children }) => {
           securityScore: (user && user.personal_score) || 95
         };
 
-        // Write directly to local storage synchronously to prevent redirects on page load
+        // Write directly to local storage synchronously before setting context states
+        localStorage.setItem('phintra_token', access_token);
+        localStorage.setItem('role', mappedRole);
+        localStorage.setItem('portal_type', 'admin');
+        localStorage.setItem('user', JSON.stringify(adminUserData));
         localStorage.setItem('adminToken', access_token);
         localStorage.setItem('adminAuth', 'true');
         localStorage.setItem('adminRole', mappedRole);
@@ -395,6 +493,7 @@ export const AuthProvider = ({ children }) => {
         setAdminAuth(true);
         setAdminRole(mappedRole);
         setAdminUser(adminUserData);
+        setIsInitializing(false);
         return { success: true, role: mappedRole, redirect_path };
       } else {
         const employeeUserData = {
@@ -408,7 +507,11 @@ export const AuthProvider = ({ children }) => {
           rewards_balance: (employee && employee.rewards_balance) || 1010
         };
 
-        // Write directly to local storage synchronously to prevent redirects on page load
+        // Write directly to local storage synchronously before setting context states
+        localStorage.setItem('phintra_token', access_token);
+        localStorage.setItem('role', 'Employee');
+        localStorage.setItem('portal_type', 'employee');
+        localStorage.setItem('user', JSON.stringify(employeeUserData));
         localStorage.setItem('employeeToken', access_token);
         localStorage.setItem('employeeAuth', 'true');
         localStorage.setItem('employeeRole', 'Employee');
@@ -417,10 +520,12 @@ export const AuthProvider = ({ children }) => {
         setEmployeeAuth(true);
         setEmployeeRole('Employee');
         setEmployeeUser(employeeUserData);
+        setIsInitializing(false);
         return { success: true, role: 'Employee', redirect_path };
       }
     } catch (error) {
-      console.error("[DEBUG] Microsoft login verification failed:", error);
+      console.error('Microsoft login verification failed:', error);
+      clearAllAuthStorage();
       const errMsg = error.response?.data?.detail || 'Your account is not registered in Phintra.';
       return { success: false, message: errMsg };
     }
@@ -448,6 +553,11 @@ export const AuthProvider = ({ children }) => {
                       window.location.pathname === '/forgot-password';
       return isAdmin ? adminUser : employeeUser;
     },
+    adminAuth,
+    employeeAuth,
+    adminRole,
+    employeeRole,
+    isInitializing,
     login,
     employeeLogin,
     microsoftLogin,

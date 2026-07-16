@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Zap, RefreshCw, AlertCircle } from 'lucide-react';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import api from '../../services/api';
 import LeaderboardPodium from '../../components/user/LeaderboardPodium';
 
@@ -38,8 +39,14 @@ const StarRating = ({ score, isDark }) => {
 ────────────────────────────────────────────── */
 const CharacterSVGs = {
   1: ({ size = 130 }) => (
-    <img src="/rank1.png" alt="Champion" style={{ width: size, height: size, objectFit: 'contain', filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.35))' }}
-      onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }} />
+    <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <DotLottieReact
+        src="https://lottie.host/3b60f668-1f45-41a8-bf23-14d8ec37573e/9tqUpN9kOS.lottie"
+        loop
+        autoplay
+        style={{ width: '130%', height: '130%' }}
+      />
+    </div>
   ),
   2: ({ size = 115 }) => (
     <img src="/rank2.png" alt="Agent" style={{ width: size, height: size, objectFit: 'contain', filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.30))' }}
@@ -135,6 +142,7 @@ const UserLeaderboard = () => {
   const [filter, setFilter] = useState('All');
   const [selectedDept, setSelectedDept] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const FILTERS = ['Top 5', 'All', 'Department'];
 
@@ -154,17 +162,24 @@ const UserLeaderboard = () => {
         securityScore: item.security_score,
         total_xp: item.total_points || 0,
         reports_count: item.report_count || 0,
-        completion_percentage: item.training_completed_count * 20, // 5 courses total, 20% each
+        completion_percentage: item.training_completed_count * 20,
         badges: item.badge ? [item.badge] : [],
         employee_id: item.employee_id,
         risk_score: item.risk_score,
         training_completed_count: item.training_completed_count,
         quiz_pass_count: item.quiz_pass_count,
+        isMock: false,
       }));
-      setLeaderboard(mapped);
 
-      // Resolve viewer stats from mapped list
-      const viewer = mapped.find(item => item.employee_id === currentUser?.employee_id || item.email === currentUser?.email);
+      let combined = [...mapped];
+      // Sort by security score desc, then XP desc, re-assign ranks
+      combined.sort((a, b) => b.securityScore - a.securityScore || b.total_xp - a.total_xp);
+      combined = combined.map((e, i) => ({ ...e, rank: i + 1 }));
+
+      setLeaderboard(combined);
+
+      // Resolve viewer stats from full combined list
+      const viewer = combined.find(item => item.employee_id === currentUser?.employee_id || item.email === currentUser?.email);
       if (viewer) {
         setViewerStats({
           rank: viewer.rank,
@@ -172,12 +187,12 @@ const UserLeaderboard = () => {
           total_xp: viewer.total_xp,
           reports_count: viewer.reports_count,
           completion_percentage: viewer.completion_percentage,
-          percentile: Math.round(((mapped.length - viewer.rank + 1) / mapped.length) * 100)
+          percentile: Math.round(((combined.length - viewer.rank + 1) / combined.length) * 100)
         });
       } else {
         setViewerStats(null);
       }
-      setTotalCount(mapped.length);
+      setTotalCount(combined.length);
     } catch (err) {
       setError('Could not load leaderboard data. Make sure the backend is running.');
     } finally {
@@ -196,6 +211,8 @@ const UserLeaderboard = () => {
     : leaderboard.filter(e => e.department === selectedDept);
 
   const displayList = filter === 'Top 5' ? filteredByDept.slice(0, 5) : filteredByDept;
+  const visibleList = showAll ? displayList : displayList.slice(0, 6);
+  const hasMore = displayList.length > 6;
 
   /* ── Current user check ── */
   const isCurrentUser = (emp) =>
@@ -209,22 +226,22 @@ const UserLeaderboard = () => {
   };
 
   return (
-    <div style={{ fontFamily: "'Outfit', 'Inter', sans-serif", maxWidth: '1080px', margin: '0 auto', padding: '0 15px', boxSizing: 'border-box' }}>
+    <div style={{ fontFamily: "'Fredoka', 'Outfit', 'Inter', sans-serif", maxWidth: '1100px', margin: '0 auto', padding: '0 20px', boxSizing: 'border-box', overflowX: 'hidden' }}>
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes goldPulse {
-          0% { box-shadow: 0 12px 36px rgba(245, 158, 11, 0.15), 0 0 8px rgba(251, 191, 36, 0.35); }
-          50% { box-shadow: 0 12px 42px rgba(245, 158, 11, 0.25), 0 0 16px rgba(251, 191, 36, 0.6); }
-          100% { box-shadow: 0 12px 36px rgba(245, 158, 11, 0.15), 0 0 8px rgba(251, 191, 36, 0.35); }
+          0% { box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1), 0 0 4px rgba(251, 191, 36, 0.2); }
+          50% { box-shadow: 0 8px 30px rgba(245, 158, 11, 0.2), 0 0 10px rgba(251, 191, 36, 0.4); }
+          100% { box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1), 0 0 4px rgba(251, 191, 36, 0.2); }
         }
         @keyframes silverPulse {
-          0% { box-shadow: 0 10px 28px rgba(59, 130, 246, 0.1), 0 0 6px rgba(59, 130, 246, 0.3); }
-          50% { box-shadow: 0 10px 34px rgba(59, 130, 246, 0.2), 0 0 14px rgba(59, 130, 246, 0.55); }
-          100% { box-shadow: 0 10px 28px rgba(59, 130, 246, 0.1), 0 0 6px rgba(59, 130, 246, 0.3); }
+          0% { box-shadow: 0 8px 24px rgba(59, 130, 246, 0.08), 0 0 4px rgba(59, 130, 246, 0.2); }
+          50% { box-shadow: 0 8px 30px rgba(59, 130, 246, 0.18), 0 0 10px rgba(59, 130, 246, 0.4); }
+          100% { box-shadow: 0 8px 24px rgba(59, 130, 246, 0.08), 0 0 4px rgba(59, 130, 246, 0.2); }
         }
         @keyframes bronzePulse {
-          0% { box-shadow: 0 8px 24px rgba(34, 197, 94, 0.08), 0 0 5px rgba(34, 197, 94, 0.25); }
-          50% { box-shadow: 0 8px 30px rgba(34, 197, 94, 0.18), 0 0 12px rgba(34, 197, 94, 0.5); }
-          100% { box-shadow: 0 8px 24px rgba(34, 197, 94, 0.08), 0 0 5px rgba(34, 197, 94, 0.25); }
+          0% { box-shadow: 0 8px 24px rgba(34, 197, 94, 0.08), 0 0 4px rgba(34, 197, 94, 0.2); }
+          50% { box-shadow: 0 8px 30px rgba(34, 197, 94, 0.18), 0 0 10px rgba(34, 197, 94, 0.4); }
+          100% { box-shadow: 0 8px 24px rgba(34, 197, 94, 0.08), 0 0 4px rgba(34, 197, 94, 0.2); }
         }
         @keyframes badgeGlow {
           0% { box-shadow: 0 0 4px rgba(59, 130, 246, 0.25); }
@@ -236,45 +253,30 @@ const UserLeaderboard = () => {
           50% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.65); }
           100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.25); }
         }
-        .leaderboard-card-1 {
-          animation: goldPulse 3.2s infinite ease-in-out;
+
+        /* ── Top header row ── */
+        .lb-top-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 24px;
+          margin-bottom: 32px;
+          flex-wrap: wrap;
         }
-        .leaderboard-card-2 {
-          animation: silverPulse 3.6s infinite ease-in-out;
-        }
-        .leaderboard-card-3 {
-          animation: bronzePulse 4.0s infinite ease-in-out;
-        }
-        .active-badge-glow {
-          animation: badgeGlow 2.5s infinite ease-in-out;
-        }
-        .active-badge-glow-dark {
-          animation: badgeGlowDark 2.5s infinite ease-in-out;
-        }
-        @media (max-width: 768px) {
-          .leaderboard-card {
-            max-width: 100% !important;
-            padding-right: 90px !important;
-            min-height: 90px !important;
-          }
-          .leaderboard-mascot {
-            width: 90px !important;
-            height: 110px !important;
-            right: 5px !important;
-            bottom: -8px !important;
-          }
-          .leaderboard-mascot img {
-            width: 80px !important;
-            height: 80px !important;
-          }
+
+        .lb-stats-hud {
+          flex-shrink: 0;
+          width: 320px;
         }
 
         .leaderboard-list {
           display: flex;
           flex-direction: column;
           align-items: flex-start;
-          gap: 32px;
+          gap: 36px;
           width: 100%;
+          padding: 8px 0 24px 0;
+          overflow-x: hidden;
         }
 
         .leaderboard-card {
@@ -282,498 +284,81 @@ const UserLeaderboard = () => {
           overflow: visible;
           border-radius: 22px;
           min-height: 120px;
+          box-sizing: border-box;
+          max-width: 100%;
         }
 
         .leaderboard-card.rank-1 {
           width: 500px;
+          min-height: 160px;
         }
 
         .leaderboard-card.rank-2 {
           width: 750px;
+          min-height: 145px;
         }
 
         .leaderboard-card.rank-3,
         .leaderboard-card.rank-normal {
-          width: 1000px;
+          width: 100%;
         }
 
         .leaderboard-popout {
           position: absolute;
-          right: 35px;
+          right: 20px;
           top: 50%;
           transform: translateY(-50%);
-          width: 130px;
-          max-height: 150px;
           object-fit: contain;
           z-index: 5;
           pointer-events: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .leaderboard-card.rank-1 .leaderboard-popout {
-          width: 145px;
+          width: 200px;
+          max-height: 200px;
         }
 
         .leaderboard-card.rank-2 .leaderboard-popout {
-          width: 135px;
+          width: 170px;
+          max-height: 170px;
         }
 
         .leaderboard-card.rank-3 .leaderboard-popout {
-          width: 130px;
+          width: 145px;
+          max-height: 145px;
         }
 
         .leaderboard-card.rank-normal .leaderboard-popout {
           display: none;
         }
 
-        @media (max-width: 1100px) {
-          .leaderboard-card.rank-1,
-          .leaderboard-card.rank-2,
-          .leaderboard-card.rank-3,
-          .leaderboard-card.rank-normal {
+        @media (max-width: 860px) {
+          .lb-top-row {
+            flex-direction: column;
+          }
+          .lb-stats-hud {
             width: 100%;
           }
-
+          .leaderboard-card.rank-1,
+          .leaderboard-card.rank-2 {
+            width: 100%;
+          }
           .leaderboard-popout {
             right: 12px;
-            width: 95px;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .leaderboard-card {
-            padding-right: 90px !important;
-            min-height: 90px !important;
-          }
-          .leaderboard-popout {
-            right: 5px !important;
-            width: 80px !important;
-            max-height: 100px !important;
+            width: 90px !important;
+            max-height: 110px !important;
           }
         }
 
         @media (max-width: 480px) {
-          .leaderboard-card {
-            padding-right: 15px !important;
-          }
           .leaderboard-popout {
             display: none !important;
           }
         }
-      ` }} />
 
-      {/* ── Header ── */}
-      <motion.div
-        initial={{ opacity: 0, y: -14 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{ marginBottom: '28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}
-      >
-        <div>
-          <h1 style={{ fontSize: '34px', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.03em', lineHeight: 1 }}>
-            Leaderboard
-          </h1>
-          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '6px', fontWeight: '500' }}>
-            {loading ? 'Loading live rankings…' : `${totalCount} employee${totalCount !== 1 ? 's' : ''} ranked by security performance`}
-          </p>
-        </div>
-
-        <button
-          onClick={() => fetchLeaderboard(true)}
-          disabled={refreshing || loading}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '7px',
-            padding: '9px 18px', borderRadius: '12px',
-            background: '#fff', border: '1px solid #e2e8f0',
-            fontSize: '13px', fontWeight: '700', color: '#475569',
-            cursor: refreshing || loading ? 'not-allowed' : 'pointer',
-            transition: 'all 0.15s ease', opacity: refreshing ? 0.7 : 1,
-          }}
-          className="lb-refresh-btn"
-        >
-          <RefreshCw size={14} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </motion.div>
-
-      {/* ── Viewer Stats Banner (live data) ── */}
-      {viewerStats && !loading && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          style={{
-            background: 'linear-gradient(135deg, #0B1120, #0e2244)',
-            borderRadius: '18px',
-            padding: '18px 24px',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '24px',
-            flexWrap: 'wrap',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 6px 24px rgba(11,17,32,0.25)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-            <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Your Stats</span>
-          </div>
-          {[
-            { label: 'Rank', value: `#${viewerStats.rank}` },
-            { label: 'Security Score', value: `${viewerStats.security_score}/100` },
-            { label: 'Total XP', value: `${viewerStats.total_xp} XP` },
-            { label: 'Reports', value: viewerStats.reports_count },
-            { label: 'Completion', value: `${viewerStats.completion_percentage}%` },
-            { label: 'Percentile', value: `Top ${100 - viewerStats.percentile + 1}%` },
-          ].map(stat => (
-            <div key={stat.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '18px', fontWeight: '900', color: '#fff', lineHeight: 1, letterSpacing: '-0.02em' }}>{stat.value}</div>
-              <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{stat.label}</div>
-            </div>
-          ))}
-        </motion.div>
-      )}
-
-      {/* ── Filter Tabs ── */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.12 }}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}
-      >
-        <div style={{ display: 'flex', gap: '5px', background: '#f1f5f9', borderRadius: '12px', padding: '4px' }}>
-          {FILTERS.map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                padding: '7px 18px', borderRadius: '9px', border: 'none',
-                fontSize: '13px', fontWeight: '800', cursor: 'pointer',
-                background: filter === f ? '#fff' : 'transparent',
-                color: filter === f ? '#0f172a' : '#94a3b8',
-                boxShadow: filter === f ? '0 1px 6px rgba(0,0,0,0.10)' : 'none',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        {(filter === 'Department' || filter === 'All') && (
-          <select
-            value={selectedDept}
-            onChange={e => setSelectedDept(e.target.value)}
-            style={{
-              padding: '8px 14px', borderRadius: '10px', border: '1px solid #e2e8f0',
-              fontSize: '13px', fontWeight: '600', color: '#475569',
-              background: '#fff', cursor: 'pointer', outline: 'none',
-            }}
-          >
-            {depts.map(d => <option key={d} value={d}>{d === 'All' ? 'All Departments' : d}</option>)}
-          </select>
-        )}
-      </motion.div>
-
-      {/* ── Error State ── */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          style={{
-            background: '#fef2f2', border: '1px solid #fecaca',
-            borderRadius: '16px', padding: '20px 24px',
-            display: 'flex', alignItems: 'center', gap: '12px',
-            marginBottom: '20px'
-          }}
-        >
-          <AlertCircle size={20} color="#ef4444" />
-          <div>
-            <p style={{ fontSize: '14px', fontWeight: '700', color: '#dc2626', margin: 0 }}>{error}</p>
-            <button onClick={() => fetchLeaderboard()} style={{ fontSize: '12px', color: '#ef4444', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px', padding: 0, textDecoration: 'underline' }}>
-              Try again
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── Loading Skeletons ── */}
-      {loading && (
-        <div className="leaderboard-list">
-          {[0, 1, 2, 3, 4].map(i => <SkeletonRow key={i} idx={i} />)}
-        </div>
-      )}
-
-      {/* ── Podium (Top 3) ── */}
-      {!loading && !error && displayList.length > 0 && (
-        <LeaderboardPodium topThree={displayList.slice(0, 3)} />
-      )}
-
-      {/* ── Ranked Rows ── */}
-      {!loading && (
-        <div className="leaderboard-list">
-          <AnimatePresence>
-            {displayList.map((emp, idx) => {
-              const rank = emp.rank || idx + 1;
-              const isMine = isCurrentUser(emp);
-              const score = emp.securityScore || 0;
-              const xp = emp.total_xp || 0;
-              
-              // Custom styles for ranks (Light and Colorful backgrounds)
-              let cardStyle = {};
-              let numBgColor = '';
-              let numTextColor = '';
-              let cardClass = '';
-              let nameColor = '';
-              let deptColor = '';
-              let scoreColor = '';
-              let xpColor = '';
-              let reportsColor = '';
-              let isDark = false; // All cards are now light background
-
-              const LIGHT_ROTATING_STYLES = [
-                { bg: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)', border: '1px solid #fbcfe8', text: '#86198f', numBg: 'rgba(192, 132, 252, 0.12)', numText: '#a855f7', dept: '#a21caf', xp: '#b71c1c' }, // Pink/Purple
-                { bg: 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)', border: '1px solid #a5f3fc', text: '#0f766e', numBg: 'rgba(34, 211, 238, 0.12)', numText: '#06b6d4', dept: '#0891b2', xp: '#0e7490' },  // Teal/Cyan
-                { bg: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', border: '1px solid #fed7aa', text: '#9a3412', numBg: 'rgba(251, 146, 60, 0.12)', numText: '#f97316', dept: '#c2410c', xp: '#ea580c' },  // Orange
-                { bg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', border: '1px solid #ddd6fe', text: '#5b21b6', numBg: 'rgba(167, 139, 250, 0.12)', numText: '#7c3aed', dept: '#6d28d9', xp: '#7c3aed' },  // Purple/Violet
-                { bg: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)', border: '1px solid #99f6e4', text: '#115e59', numBg: 'rgba(45, 212, 191, 0.12)', numText: '#14b8a6', dept: '#0f766e', xp: '#0d9488' },  // Mint/Teal
-              ];
-
-              if (rank === 1) {
-                // Gold Premium Light theme
-                cardStyle = {
-                  background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)',
-                  border: '2px solid #f59e0b',
-                };
-                numBgColor = 'rgba(245, 158, 11, 0.15)';
-                numTextColor = '#d97706';
-                cardClass = 'leaderboard-card-1';
-                nameColor = '#78350f';
-                deptColor = '#b45309';
-                scoreColor = '#78350f';
-                xpColor = '#92400e';
-                reportsColor = '#b45309';
-              } else if (rank === 2) {
-                cardStyle = {
-                  background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                  border: '2px solid #3b82f6',
-                };
-                numBgColor = 'rgba(59, 130, 246, 0.12)';
-                numTextColor = '#2563eb';
-                cardClass = 'leaderboard-card-2';
-                nameColor = '#1e3a8a';
-                deptColor = '#2563eb';
-                scoreColor = '#1e3a8a';
-                xpColor = '#1d4ed8';
-                reportsColor = '#2563eb';
-              } else if (rank === 3) {
-                cardStyle = {
-                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                  border: '2px solid #22c55e',
-                };
-                numBgColor = 'rgba(34, 197, 94, 0.12)';
-                numTextColor = '#16a34a';
-                cardClass = 'leaderboard-card-3';
-                nameColor = '#14532d';
-                deptColor = '#16a34a';
-                scoreColor = '#14532d';
-                xpColor = '#15803d';
-                reportsColor = '#16a34a';
-              } else {
-                // Rotating Light/Color themes for Ranks 4+
-                const rotationStyle = LIGHT_ROTATING_STYLES[(rank - 4) % LIGHT_ROTATING_STYLES.length];
-                cardStyle = {
-                  background: rotationStyle.bg,
-                  border: rotationStyle.border,
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.02)',
-                };
-                numBgColor = rotationStyle.numBg;
-                numTextColor = rotationStyle.numText;
-                nameColor = rotationStyle.text;
-                deptColor = rotationStyle.dept;
-                scoreColor = rotationStyle.text;
-                xpColor = rotationStyle.xp;
-                reportsColor = rotationStyle.dept;
-              }
-              
-              return (
-                <motion.div
-                  key={`${emp.name}-${rank}`}
-                  initial={{ opacity: 0, x: -40, scale: 0.97 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: 40 }}
-                  transition={{ duration: 0.38, delay: idx * 0.055, ease: 'easeOut' }}
-                  whileHover={{ scale: 1.015, y: -4 }}
-                  className={`leaderboard-card rank-${rank <= 3 ? rank : 'normal'} ${cardClass}`}
-                  style={{
-                    ...cardStyle,
-                    padding: '0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'default',
-                    boxSizing: 'border-box',
-                    transition: 'transform 0.22s ease, box-shadow 0.22s ease',
-                    zIndex: rank <= 3 ? 10 - rank : 1,
-                    border: isMine ? '3px solid #2563eb' : cardStyle.border,
-                  }}
-                >
-                  {/* shine overlay */}
-                  {rank <= 3 && (
-                    <div style={{ position: 'absolute', inset: 0, borderRadius: '16px', background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 55%)', pointerEvents: 'none' }} />
-                  )}
-
-                  {/* Rank number block */}
-                  <div style={{
-                    width: rank === 1 ? '74px' : '64px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    alignSelf: 'stretch', flexShrink: 0,
-                    background: numBgColor,
-                    borderRadius: '16px 0 0 16px',
-                  }}>
-                    <span className="gamified-metric rank-number" style={{
-                      fontSize: rank === 1 ? '34px' : rank <= 3 ? '26px' : '20px',
-                      fontWeight: '900', color: numTextColor, lineHeight: 1,
-                    }}>{rank}</span>
-                  </div>
-
-                  {/* Name + Stars + Dept */}
-                  <div style={{ flex: 1, padding: '0 20px', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <span style={{
-                        fontSize: rank === 1 ? '20px' : rank <= 3 ? '17px' : '15px',
-                        fontWeight: '900', color: nameColor,
-                        letterSpacing: '-0.02em',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px'
-                      }}>
-                        {emp.name}
-                      </span>
-                      {isMine && (
-                        <span 
-                          className="active-badge-glow"
-                          style={{
-                            fontSize: '9px', fontWeight: '800', 
-                            color: '#ffffff',
-                            background: '#2563eb', 
-                            padding: '2px 8px',
-                            borderRadius: '99px', 
-                            border: '1px solid rgba(37, 99, 235, 0.4)',
-                            letterSpacing: '0.06em', flexShrink: 0,
-                          }}
-                        >YOU</span>
-                      )}
-                    </div>
-                    <StarRating score={score} isDark={isDark} />
-                    <div style={{ fontSize: '11px', color: deptColor, marginTop: '3px', fontWeight: '600' }}>
-                      {emp.department}
-                      {emp.completion_percentage > 0 && (
-                        <span style={{ marginLeft: '8px', opacity: 0.75 }}>· {emp.completion_percentage}% trained</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Score + XP */}
-                  <div style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
-                    flexShrink: 0, gap: '4px',
-                    padding: rank <= 3 ? (rank === 1 || rank === 2 ? '0 160px 0 16px' : '0 135px 0 16px') : '0 16px',
-                  }}>
-                    <span className="gamified-metric score-number" style={{
-                      fontSize: rank === 1 ? '26px' : rank <= 3 ? '22px' : '18px',
-                      fontWeight: '900', color: scoreColor,
-                      letterSpacing: '-0.03em',
-                    }}>
-                      {score}<span style={{ fontSize: rank === 1 ? '15px' : '13px', opacity: 0.7 }}>/100</span>
-                    </span>
-                    <span className="gamified-metric xp-amount" style={{ fontSize: '10px', color: xpColor, fontWeight: '750', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      <Zap size={9} /> {xp.toLocaleString()} XP
-                    </span>
-                    {emp.reports_count > 0 && (
-                      <span style={{ fontSize: '9px', color: reportsColor, fontWeight: '600' }}>
-                        {emp.reports_count} report{emp.reports_count !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Character overlapping popout */}
-                  {rank <= 3 && (
-                    <motion.div
-                      className="leaderboard-popout"
-                      animate={{ y: ["-50%", "-54%", "-50%"] }}
-                      transition={{ repeat: Infinity, duration: 2.2 + rank * 0.4, ease: 'easeInOut' }}
-                      style={{
-                        position: 'absolute',
-                        right: '35px',
-                        top: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 5,
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      {getCharacter(rank, "100%")}
-                    </motion.div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* ── Empty State ── */}
-      {!loading && !error && displayList.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          style={{
-            textAlign: 'center', padding: '60px 20px',
-            background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0'
-          }}
-        >
-          <Trophy size={48} color="#e2e8f0" style={{ marginBottom: '16px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#94a3b8' }}>No rankings found</h3>
-          <p style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>Leaderboard will appear after employees start completing trainings and reporting emails.</p>
-        </motion.div>
-      )}
-
-      {/* ── "Your Position" footer banner if not in visible list ── */}
-      {!loading && viewerStats && (() => {
-        const isVisible = displayList.some(e => isCurrentUser(e));
-        if (!isVisible && viewerStats.rank) {
-          const styleIdx = (viewerStats.rank - 1) % RANK_STYLES.length;
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              style={{
-                marginTop: '24px',
-                background: RANK_STYLES[styleIdx].bg,
-                borderRadius: '18px',
-                padding: '18px 24px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                border: '3px solid rgba(255,255,255,0.65)',
-                boxShadow: `0 6px 24px ${RANK_STYLES[styleIdx].shadow}`,
-                flexWrap: 'wrap',
-              }}
-            >
-              <div style={{ position: 'absolute' }} />
-              <span style={{ fontSize: '11px', fontWeight: '800', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>📍 Your Position</span>
-              <span style={{ fontSize: '24px', fontWeight: '900', color: '#fff' }}>#{viewerStats.rank}</span>
-              <span style={{ flex: 1, fontSize: '14px', fontWeight: '700', color: '#fff' }}>{currentUser?.name}</span>
-              <span style={{ fontSize: '20px', fontWeight: '900', color: '#fff' }}>{viewerStats.security_score}/100</span>
-              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Zap size={12} /> {viewerStats.total_xp} XP
-              </span>
-            </motion.div>
-          );
-        }
-        return null;
-      })()}
-
-      <style>{`
         @keyframes shimmer {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
@@ -782,12 +367,467 @@ const UserLeaderboard = () => {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        .lb-refresh-btn:hover {
-          background: #f8fafc !important;
-          border-color: #cbd5e1 !important;
-        }
-      `}</style>
-    </div>
+      ` }} />
+
+      {/* ── Page Title ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -14 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ marginBottom: '20px' }}
+      >
+        <h1 style={{ fontSize: '32px', fontWeight: '950', color: '#0f172a', letterSpacing: '-0.03em', lineHeight: 1, margin: 0 }}>
+          Leaderboard
+        </h1>
+        <p style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', margin: '6px 0 0 0', lineHeight: 1.4 }}>
+          {loading ? 'Loading live rankings…' : `${totalCount} employee${totalCount !== 1 ? 's' : ''} ranked by security performance`}
+        </p>
+      </motion.div>
+
+      {/* ── Your Stats horizontal bar ── */}
+      {viewerStats && !loading && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          style={{
+            background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
+            borderRadius: '20px',
+            padding: '16px 28px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0',
+            border: '2px solid rgba(255,255,255,0.2)',
+            borderBottom: '5px solid #1e1b4b',
+            boxShadow: '0 8px 24px rgba(79,70,229,0.18), inset 0 1px 0 rgba(255,255,255,0.25)',
+            marginBottom: '32px',
+            flexWrap: 'wrap',
+          }}
+        >
+          {/* "Your Stats" label */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', paddingRight: '24px', marginRight: '4px', borderRight: '1px solid rgba(255,255,255,0.2)' }}>
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981', flexShrink: 0 }} />
+            <span style={{ fontSize: '11px', fontWeight: '950', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>Your Stats</span>
+          </div>
+
+          {/* Stat items */}
+          {[
+            { label: 'Rank',           value: `#${viewerStats.rank}` },
+            { label: 'Security Score', value: `${viewerStats.security_score}/100` },
+            { label: 'Total XP',       value: `${viewerStats.total_xp} XP` },
+            { label: 'Reports',        value: viewerStats.reports_count },
+            { label: 'Completion',     value: `${viewerStats.completion_percentage}%` },
+            { label: 'Percentile',     value: `Top ${100 - viewerStats.percentile + 1}%` },
+          ].map((stat, i, arr) => (
+            <div
+              key={stat.label}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '0 24px',
+                borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.15)' : 'none',
+              }}
+            >
+              <span style={{ fontSize: '20px', fontWeight: '950', color: '#fff', lineHeight: 1, fontFamily: "'Fredoka', sans-serif" }}>
+                {stat.value}
+              </span>
+              <span style={{ fontSize: '10px', color: '#c7d2fe', fontWeight: '700', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {stat.label}
+              </span>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+
+      {/* ── Rankings list ── */}
+      <div>
+          {/* Filter Tabs */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.12 }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}
+          >
+            <div style={{ display: 'flex', gap: '5px', background: '#f1f5f9', borderRadius: '12px', padding: '4px' }}>
+              {FILTERS.map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  style={{
+                    padding: '7px 18px', borderRadius: '9px', border: 'none',
+                    fontSize: '13px', fontWeight: '800', cursor: 'pointer',
+                    background: filter === f ? '#fff' : 'transparent',
+                    color: filter === f ? '#0f172a' : '#94a3b8',
+                    boxShadow: filter === f ? '0 1px 6px rgba(0,0,0,0.10)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            {(filter === 'Department' || filter === 'All') && (
+              <select
+                value={selectedDept}
+                onChange={e => setSelectedDept(e.target.value)}
+                style={{
+                  padding: '8px 14px', borderRadius: '10px', border: '1px solid #e2e8f0',
+                  fontSize: '13px', fontWeight: '600', color: '#475569',
+                  background: '#fff', cursor: 'pointer', outline: 'none',
+                }}
+              >
+                {depts.map(d => <option key={d} value={d}>{d === 'All' ? 'All Departments' : d}</option>)}
+              </select>
+            )}
+          </motion.div>
+
+          {/* Error State */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{
+                background: '#fef2f2', border: '1px solid #fecaca',
+                borderRadius: '16px', padding: '20px 24px',
+                display: 'flex', alignItems: 'center', gap: '12px',
+                marginBottom: '20px'
+              }}
+            >
+              <AlertCircle size={20} color="#ef4444" />
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: '700', color: '#dc2626', margin: 0 }}>{error}</p>
+                <button onClick={() => fetchLeaderboard()} style={{ fontSize: '12px', color: '#ef4444', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px', padding: 0, textDecoration: 'underline' }}>
+                  Try again
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Loading Skeletons */}
+          {loading && (
+            <div className="leaderboard-list">
+              {[0, 1, 2, 3, 4].map(i => <SkeletonRow key={i} idx={i} />)}
+            </div>
+          )}
+
+          {/* Podium (Top 3) */}
+          {!loading && !error && displayList.length > 0 && (
+            <LeaderboardPodium topThree={displayList.slice(0, 3)} />
+          )}
+
+          {/* Ranked Rows */}
+          {!loading && (
+            <div className="leaderboard-list">
+              <AnimatePresence>
+                {visibleList.map((emp, idx) => {
+                  const rank = emp.rank || idx + 1;
+                  const isMine = isCurrentUser(emp);
+                  const score = emp.securityScore || 0;
+                  const xp = emp.total_xp || 0;
+                  
+                  // Custom styles for ranks (Skeuomorphic 3D Cartoon styles)
+                  let cardStyle = {};
+                  let numBgColor = '';
+                  let numTextColor = '';
+                  let cardClass = '';
+                  let nameColor = '';
+                  let deptColor = '';
+                  let scoreColor = '';
+                  let xpColor = '';
+                  let reportsColor = '';
+                  let isDark = false; 
+
+                  if (isMine) {
+                    // Highlight user row with a special blue skeuomorphic card
+                    cardStyle = {
+                      background: 'linear-gradient(135deg, #f0f7ff 0%, #e0f0fe 100%)',
+                      border: '2px solid #3b82f6',
+                      borderBottom: '6px solid #1d4ed8',
+                      boxShadow: '0 8px 16px rgba(59, 130, 246, 0.1)',
+                    };
+                    numBgColor = 'rgba(59, 130, 246, 0.15)';
+                    numTextColor = '#1d4ed8';
+                    nameColor = '#1e3a8a';
+                    deptColor = '#2563eb';
+                    scoreColor = '#1d4ed8';
+                    xpColor = '#2563eb';
+                    reportsColor = '#2563eb';
+                  } else if (rank === 1) {
+                    cardStyle = {
+                      background: 'linear-gradient(135deg, #fffbeb 0%, #fde68a 100%)',
+                      border: '2px solid #f59e0b',
+                      borderBottom: '6px solid #d97706',
+                    };
+                    numBgColor = 'rgba(245, 158, 11, 0.15)';
+                    numTextColor = '#d97706';
+                    cardClass = 'leaderboard-card-1';
+                    nameColor = '#78350f';
+                    deptColor = '#b45309';
+                    scoreColor = '#78350f';
+                    xpColor = '#92400e';
+                    reportsColor = '#b45309';
+                  } else if (rank === 2) {
+                    cardStyle = {
+                      background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
+                      border: '2px solid #3b82f6',
+                      borderBottom: '6px solid #1d4ed8',
+                    };
+                    numBgColor = 'rgba(59, 130, 246, 0.12)';
+                    numTextColor = '#2563eb';
+                    cardClass = 'leaderboard-card-2';
+                    nameColor = '#1e3a8a';
+                    deptColor = '#2563eb';
+                    scoreColor = '#1e3a8a';
+                    xpColor = '#1d4ed8';
+                    reportsColor = '#2563eb';
+                  } else if (rank === 3) {
+                    cardStyle = {
+                      background: 'linear-gradient(135deg, #fcfdfd 0%, #f0fdf4 100%)',
+                      border: '2px solid #22c55e',
+                      borderBottom: '6px solid #16a34a',
+                    };
+                    numBgColor = 'rgba(34, 197, 94, 0.12)';
+                    numTextColor = '#16a34a';
+                    cardClass = 'leaderboard-card-3';
+                    nameColor = '#14532d';
+                    deptColor = '#16a34a';
+                    scoreColor = '#14532d';
+                    xpColor = '#15803d';
+                    reportsColor = '#16a34a';
+                  } else {
+                    cardStyle = {
+                      background: '#ffffff',
+                      border: '2px solid #e2e8f0',
+                      borderBottom: '6px solid #cbd5e1',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.02)',
+                    };
+                    numBgColor = '#f1f5f9';
+                    numTextColor = '#475569';
+                    nameColor = '#0f172a';
+                    deptColor = '#64748b';
+                    scoreColor = '#0f172a';
+                    xpColor = '#2563eb';
+                    reportsColor = '#64748b';
+                  }
+                  
+                  return (
+                    <motion.div
+                      key={`${emp.name}-${rank}`}
+                      initial={{ opacity: 0, x: -40, scale: 0.97 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 40 }}
+                      transition={{ duration: 0.38, delay: idx * 0.055, ease: 'easeOut' }}
+                      whileHover={{ scale: 1.015, y: -4 }}
+                      className={`leaderboard-card rank-${rank <= 3 ? rank : 'normal'} ${cardClass}`}
+                      style={{
+                        ...cardStyle,
+                        padding: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        cursor: 'default',
+                        transition: 'transform 0.22s ease, box-shadow 0.22s ease',
+                        zIndex: rank <= 3 ? 10 - rank : 1,
+                      }}
+                    >
+                      {/* shine overlay */}
+                      {rank <= 3 && (
+                        <div style={{ position: 'absolute', inset: 0, borderRadius: '16px', background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 55%)', pointerEvents: 'none' }} />
+                      )}
+
+                      {/* Rank number block */}
+                      <div style={{
+                        width: rank === 1 ? '74px' : '64px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        alignSelf: 'stretch', flexShrink: 0,
+                        background: numBgColor,
+                        borderRadius: '16px 0 0 16px',
+                      }}>
+                        <span className="gamified-metric rank-number" style={{
+                          fontSize: rank === 1 ? '34px' : rank <= 3 ? '26px' : '20px',
+                          fontWeight: '900', color: numTextColor, lineHeight: 1,
+                        }}>{rank}</span>
+                      </div>
+
+                      {/* Name + Stars + Dept */}
+                      <div style={{ flex: 1, padding: '0 20px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <span style={{
+                            fontSize: rank === 1 ? '20px' : rank <= 3 ? '17px' : '15px',
+                            fontWeight: '900', color: nameColor,
+                            letterSpacing: '-0.02em',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px'
+                          }}>
+                            {emp.name}
+                          </span>
+                          {isMine && (
+                            <span 
+                              className="active-badge-glow"
+                              style={{
+                                fontSize: '9px', fontWeight: '800', 
+                                color: '#ffffff',
+                                background: '#2563eb', 
+                                padding: '2px 8px',
+                                borderRadius: '99px', 
+                                border: '1px solid rgba(37, 99, 235, 0.4)',
+                                letterSpacing: '0.06em', flexShrink: 0,
+                              }}
+                            >YOU</span>
+                          )}
+                        </div>
+                        <StarRating score={score} isDark={isDark} />
+                        <div style={{ fontSize: '11px', color: deptColor, marginTop: '3px', fontWeight: '600' }}>
+                          {emp.department}
+                          {emp.completion_percentage > 0 && (
+                            <span style={{ marginLeft: '8px', opacity: 0.75 }}>· {emp.completion_percentage}% trained</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Score + XP */}
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                        flexShrink: 0, gap: '4px',
+                        padding: rank <= 3 ? (rank === 1 || rank === 2 ? '0 160px 0 16px' : '0 135px 0 16px') : '0 16px',
+                      }}>
+                        <span className="gamified-metric score-number" style={{
+                          fontSize: rank === 1 ? '26px' : rank <= 3 ? '22px' : '18px',
+                          fontWeight: '900', color: scoreColor,
+                          letterSpacing: '-0.03em',
+                        }}>
+                          {score}<span style={{ fontSize: rank === 1 ? '15px' : '13px', opacity: 0.7 }}>/100</span>
+                        </span>
+                        <span className="gamified-metric xp-amount" style={{ fontSize: '10px', color: xpColor, fontWeight: '750', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <Zap size={9} /> {xp.toLocaleString()} XP
+                        </span>
+                        {emp.reports_count > 0 && (
+                          <span style={{ fontSize: '9px', color: reportsColor, fontWeight: '600' }}>
+                            {emp.reports_count} report{emp.reports_count !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Character overlapping popout */}
+                      {rank <= 3 && (
+                        <motion.div
+                          className="leaderboard-popout"
+                          animate={{ y: ["-50%", "-56%", "-50%"] }}
+                          transition={{ repeat: Infinity, duration: 2.2 + rank * 0.4, ease: 'easeInOut' }}
+                          style={{
+                            position: 'absolute',
+                            right: rank === 1 ? '12px' : rank === 2 ? '16px' : '20px',
+                            top: '50%',
+                            width: rank === 1 ? '200px' : rank === 2 ? '170px' : '145px',
+                            height: rank === 1 ? '200px' : rank === 2 ? '170px' : '145px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 5,
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          {getCharacter(rank, rank === 1 ? 200 : rank === 2 ? 170 : 145)}
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Show More / Show Less button */}
+          {!loading && hasMore && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}
+            >
+              <button
+                onClick={() => setShowAll(prev => !prev)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '14px 40px',
+                  borderRadius: '99px',
+                  background: showAll
+                    ? '#f1f5f9'
+                    : 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
+                  color: showAll ? '#475569' : '#fff',
+                  border: showAll ? '2px solid #e2e8f0' : '2px solid rgba(255,255,255,0.2)',
+                  borderBottom: showAll ? '4px solid #cbd5e1' : '4px solid #1e1b4b',
+                  fontSize: '14px', fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: showAll
+                    ? '0 4px 8px rgba(0,0,0,0.06)'
+                    : '0 8px 24px rgba(79,70,229,0.25)',
+                  transition: 'all 0.2s ease',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {showAll
+                  ? '▲  Show Less'
+                  : `▼  Show All ${displayList.length} Players`}
+              </button>
+            </motion.div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && displayList.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{
+                textAlign: 'center', padding: '60px 20px',
+                background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0'
+              }}
+            >
+              <Trophy size={48} color="#e2e8f0" style={{ marginBottom: '16px' }} />
+              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#94a3b8' }}>No rankings found</h3>
+              <p style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>Leaderboard will appear after employees start completing trainings and reporting emails.</p>
+            </motion.div>
+          )}
+
+          {/* "Your Position" footer banner if not in visible list */}
+          {!loading && viewerStats && (() => {
+            const isVisible = displayList.some(e => isCurrentUser(e));
+            if (!isVisible && viewerStats.rank) {
+              const styleIdx = (viewerStats.rank - 1) % RANK_STYLES.length;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  style={{
+                    marginTop: '24px',
+                    background: RANK_STYLES[styleIdx].bg,
+                    borderRadius: '18px',
+                    padding: '18px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    border: '3px solid rgba(255,255,255,0.65)',
+                    boxShadow: `0 6px 24px ${RANK_STYLES[styleIdx].shadow}`,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ position: 'absolute' }} />
+                  <span style={{ fontSize: '11px', fontWeight: '800', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>📍 Your Position</span>
+                  <span style={{ fontSize: '24px', fontWeight: '900', color: '#fff' }}>#{viewerStats.rank}</span>
+                  <span style={{ flex: 1, fontSize: '14px', fontWeight: '700', color: '#fff' }}>{currentUser?.name}</span>
+                  <span style={{ fontSize: '20px', fontWeight: '900', color: '#fff' }}>{viewerStats.security_score}/100</span>
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Zap size={12} /> {viewerStats.total_xp} XP
+                  </span>
+                </motion.div>
+              );
+            }
+            return null;
+          })()}
+        </div>
+      </div>
+
   );
 };
 

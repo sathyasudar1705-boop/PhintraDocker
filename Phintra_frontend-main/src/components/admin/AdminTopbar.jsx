@@ -151,8 +151,8 @@ const AdminTopbar = ({ onMenuClick, onSearchClick, onNotificationsClick }) => {
         {/* Profile Summary */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid var(--border-color)', paddingLeft: '20px' }}>
           <div style={{ textAlign: 'right' }} className="profile-text-responsive">
-            <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>{currentUser.name}</p>
-            <p style={{ fontSize: '12px', color: 'var(--text-light)' }}>{currentUser.role}</p>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>{currentUser?.name || 'Admin'}</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-light)' }}>{currentUser?.role || 'Security Admin'}</p>
           </div>
           <div style={{
             width: '38px',
@@ -166,7 +166,7 @@ const AdminTopbar = ({ onMenuClick, onSearchClick, onNotificationsClick }) => {
             fontSize: '14px',
             fontWeight: '600'
           }}>
-            {currentUser.name ? currentUser.name.split(' ').map(n=>n[0]).join('') : "A"}
+            {currentUser?.name ? currentUser.name.split(' ').map(n=>n[0]).join('') : "A"}
           </div>
         </div>
       </div>

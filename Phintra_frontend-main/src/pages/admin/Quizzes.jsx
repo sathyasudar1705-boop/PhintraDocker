@@ -5,7 +5,8 @@ import { Award, Plus, Eye, Trash2, HelpCircle, FileText } from 'lucide-react';
 import Button from '../../components/common/Button';
 
 const AdminQuizzes = () => {
-  const { quizzes, addQuiz, deleteQuiz } = useAppContext();
+  const { currentUser, quizzes: allQuizzes, trainingModules, addQuiz, deleteQuiz } = useAppContext();
+  const quizzes = allQuizzes.filter(q => q.admin_id === currentUser?.id);
   const confirm = useConfirm();
 
   // Modal States
@@ -14,6 +15,7 @@ const AdminQuizzes = () => {
 
   // Form Fields (Create Quiz)
   const [quizName, setQuizName] = useState('');
+  const [selectedModuleId, setSelectedModuleId] = useState('');
   const [passingScore, setPassingScore] = useState(80);
   const [questions, setQuestions] = useState([
     {
@@ -84,6 +86,11 @@ const AdminQuizzes = () => {
       return;
     }
 
+    if (!selectedModuleId) {
+      setError('Associated training module is required.');
+      return;
+    }
+
     // Validate that questions have content and options
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
@@ -100,6 +107,7 @@ const AdminQuizzes = () => {
 
     addQuiz({
       quizName,
+      moduleId: selectedModuleId,
       questionsCount: questions.length,
       passingScore: parseInt(passingScore),
       questions
@@ -109,6 +117,7 @@ const AdminQuizzes = () => {
     setTimeout(() => {
       setShowCreateModal(false);
       setQuizName('');
+      setSelectedModuleId('');
       setPassingScore(80);
       setQuestions([
         {
@@ -312,6 +321,21 @@ const AdminQuizzes = () => {
                     onChange={(e) => setQuizName(e.target.value)}
                     required
                   />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Associated Training Module</label>
+                  <select
+                    className="form-control"
+                    value={selectedModuleId}
+                    onChange={(e) => setSelectedModuleId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Select Training Module --</option>
+                    {(trainingModules || []).map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group">

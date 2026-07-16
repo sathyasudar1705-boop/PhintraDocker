@@ -102,7 +102,23 @@ const playSynthesizedSound = (type, isMuted) => {
 };
 
 const EmployeeQuizzes = () => {
-  const { currentUser, quizzes, setCurrentUser, addAuditLog } = useAppContext();
+  const { currentUser, quizzes: allQuizzes, trainingModules, setCurrentUser, addAuditLog } = useAppContext();
+  
+  const quizzes = (allQuizzes || []).map(q => {
+    const mod = (trainingModules || []).find(m => m.id === q.module_id);
+    return {
+      ...q,
+      quizName: q.quizName || (mod ? `${mod.name} Quiz` : "Security Quiz"),
+      questionsCount: q.questions?.length || 0,
+      passingScore: q.passing_score,
+      questions: (q.questions || []).map(ques => ({
+        ...ques,
+        questionText: ques.question_text || ques.questionText,
+        options: ques.options,
+        correctIndex: ques.correct_option_index !== undefined ? ques.correct_option_index : (ques.correctIndex !== undefined ? ques.correctIndex : 0)
+      }))
+    };
+  });
   
   // Game states: 'LIST', 'PLAYING', 'RESULT'
   const [viewState, setViewState] = useState('LIST');
@@ -301,10 +317,12 @@ const EmployeeQuizzes = () => {
 
       if (isDatabaseQuiz) {
         const answersList = questions.map((_, idx) => selectedAnswers[idx] || 0);
-        await api.post(`/quizzes/${activeQuiz.id}/attempt`, {
-          employee_id: currentUser.employee_id || currentUser.id,
-          answers: answersList
-        });
+        const payload = { answers: answersList };
+        // Only include employee_id when the user is not a plain Employee (e.g., Manager/Admin)
+        if (currentUser.role && currentUser.role.toLowerCase() !== 'employee') {
+          payload.employee_id = currentUser.employee_id || currentUser.id;
+        }
+        await api.post(`/quizzes/${activeQuiz.id}/attempt`, payload);
       } else {
         const newResult = {
           id: `quiz-attempt-${Date.now()}`,
@@ -378,10 +396,12 @@ const EmployeeQuizzes = () => {
               return (
                 <motion.div
                   key={quiz.id}
-                  whileHover={{ y: -4, boxShadow: '0 12px 30px rgba(0,0,0,0.06)' }}
+                  whileHover={{ y: -4, boxShadow: passed ? '0 12px 30px rgba(16,185,129,0.08)' : '0 12px 30px rgba(99,102,241,0.08)' }}
                   style={{
-                    background: '#fff',
-                    border: passed ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                    background: passed ? '#f0fdf4' : '#eef2ff',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: passed ? '#bbf7d0' : '#e0e7ff',
                     borderRadius: '20px',
                     padding: '24px',
                     display: 'flex',
@@ -389,7 +409,7 @@ const EmployeeQuizzes = () => {
                     justifyContent: 'space-between',
                     position: 'relative',
                     transition: 'all 0.25s ease',
-                    boxShadow: passed ? '0 8px 20px rgba(16,185,129,0.04)' : 'none'
+                    boxShadow: passed ? '0 8px 20px rgba(16,185,129,0.03)' : '0 8px 20px rgba(99,102,241,0.03)'
                   }}
                 >
                   {/* Banner Line */}

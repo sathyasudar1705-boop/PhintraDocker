@@ -16,7 +16,8 @@ import {
   MailOpen, 
   Clock, 
   Sparkles, 
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown
 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import { useToast } from '../../hooks/useToast';
@@ -156,35 +157,55 @@ const UserTraining = () => {
     <div style={{ fontFamily: "'Inter', 'Outfit', sans-serif", maxWidth: '1200px', margin: '0 auto' }}>
       
       {/* ── 1. Hero Banner ── */}
+      {/* ── 1. Hero Banner ── */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         style={{
-          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #7c3aed 100%)',
-          borderRadius: '24px',
-          padding: '40px 48px',
+          background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+          borderRadius: '28px',
+          padding: '44px 48px',
           position: 'relative',
-          overflow: 'visible',
+          overflow: 'hidden',
           marginBottom: '32px',
-          boxShadow: '0 20px 40px -15px rgba(99, 102, 241, 0.35)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 12px 32px rgba(99, 102, 241, 0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          minHeight: '180px'
         }}
         className="training-hero-banner"
       >
+        {/* Background design elements */}
+        <div style={{ position: 'absolute', right: '20%', top: '-30%', width: '220px', height: '220px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
+
         {/* Text Container aligned on the left */}
-        <div style={{ maxWidth: '540px', position: 'relative', zIndex: 2, textAlign: 'left' }} className="training-hero-text">
-          <h1 style={{ fontSize: '28px', fontWeight: '900', color: '#ffffff', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
-            Hi, {firstName}! 👋
+        <div style={{ maxWidth: '60%', position: 'relative', zIndex: 2, textAlign: 'left' }} className="training-hero-text">
+          <h1 style={{ 
+            fontSize: '36px', 
+            fontWeight: '950', 
+            color: '#ffffff', 
+            margin: '0 0 10px 0', 
+            letterSpacing: '-0.01em',
+            fontFamily: "'Fredoka', sans-serif",
+            textShadow: '0 2px 0 rgba(0,0,0,0.15)'
+          }}>
+            Level Up Your Security Skills
           </h1>
-          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, margin: '0 0 20px 0', fontWeight: '500' }}>
-            Welcome to Phintra Security Awareness Academy. Complete your assigned micro-modules, earn XP achievements, and protect your organization.
+          <p style={{ 
+            fontSize: '15px', 
+            color: 'rgba(255, 255, 255, 0.9)', 
+            lineHeight: 1.6, 
+            margin: '0 0 24px 0', 
+            fontWeight: '500', 
+            fontFamily: "'Inter', sans-serif" 
+          }}>
+            Complete trainings, earn XP, unlock badges, and protect your organization.
           </p>
           <motion.button
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.04, boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)' }}
             whileTap={{ scale: 0.98 }}
             onClick={() => {
               const el = document.getElementById('popular-section');
@@ -192,14 +213,18 @@ const UserTraining = () => {
             }}
             style={{
               background: '#ffffff',
-              color: '#4f46e5',
-              border: 'none',
-              padding: '8px 24px',
-              borderRadius: '99px',
+              color: '#6366f1',
+              border: '2px solid rgba(255, 255, 255, 0.8)',
+              borderBottom: '4px solid #b0bec5',
+              padding: '10px 28px',
+              borderRadius: '16px',
               fontSize: '13px',
-              fontWeight: '700',
+              fontWeight: '900',
+              fontFamily: "'Fredoka', sans-serif",
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
               cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+              boxShadow: '0 4px 10px rgba(0, 0, 0, 0.08), inset 0 2px 0 rgba(255,255,255,0.4)'
             }}
           >
             Explore Courses
@@ -209,10 +234,10 @@ const UserTraining = () => {
         {/* Right Mascot graphic positioned absolutely */}
         <div style={{
           position: 'absolute',
-          right: '32px',
-          bottom: '-20px',
-          height: '270px',
-          width: '270px',
+          right: '40px',
+          bottom: '-10px',
+          height: '240px',
+          width: '240px',
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'center',
@@ -223,71 +248,14 @@ const UserTraining = () => {
             src={trainingMascotImg} 
             alt="Mascot" 
             style={{ 
-              maxHeight: '110%', 
-              maxWidth: '110%', 
+              maxHeight: '100%', 
+              maxWidth: '100%', 
               objectFit: 'contain',
-              filter: 'drop-shadow(0 15px 30px rgba(99, 102, 241, 0.3)) drop-shadow(0 4px 10px rgba(0,0,0,0.15))' 
+              filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))' 
             }} 
           />
         </div>
       </motion.div>
-
-      {/* ── 2. Search & Toolbar Strip ── */}
-      <div style={{
-        display: 'flex',
-        gap: '16px',
-        alignItems: 'center',
-        background: '#ffffff',
-        padding: '16px 20px',
-        borderRadius: '20px',
-        border: '1px solid #e2e8f0',
-        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.01)',
-        marginBottom: '32px',
-        maxWidth: '650px'
-      }}>
-        {/* Search */}
-        <div style={{ position: 'relative', flex: 1 }}>
-          <input
-            type="text"
-            placeholder="Search training modules..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 16px 10px 42px',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              fontSize: '13px',
-              fontWeight: '500',
-              outline: 'none',
-              color: '#0f172a'
-            }}
-          />
-          <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-        </div>
-
-        {/* Dropdown status filter */}
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{
-            padding: '10px 16px',
-            borderRadius: '12px',
-            border: '1px solid #e2e8f0',
-            fontSize: '13px',
-            fontWeight: '600',
-            color: '#475569',
-            outline: 'none',
-            cursor: 'pointer',
-            minWidth: '150px',
-            background: '#ffffff'
-          }}
-        >
-          <option value="All">All Courses</option>
-          <option value="Not Started">Not Completed</option>
-          <option value="Completed">Completed</option>
-        </select>
-      </div>
 
       {error && (
         <div style={{ background: '#fdf2f2', border: '1px solid #fca5a5', color: '#ef4444', padding: '12px 16px', borderRadius: '12px', fontSize: '13px', marginBottom: '24px' }}>
@@ -306,6 +274,76 @@ const UserTraining = () => {
         {/* ── Left Column: Course Catalogs (Popular & Ongoing) ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '36px' }}>
           
+          {/* ── 2. Search & Toolbar Strip ── */}
+          <div style={{
+            display: 'flex',
+            gap: '16px',
+            alignItems: 'center',
+            background: 'rgba(255, 255, 255, 0.8)',
+            padding: '12px 16px',
+            borderRadius: '16px',
+            border: '1px solid #e2e8f0',
+            backdropFilter: 'blur(8px)',
+            boxShadow: '0 8px 30px rgba(99, 102, 241, 0.03)'
+          }}>
+            {/* Search */}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                type="text"
+                placeholder="Search training modules..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px 10px 54px',
+                  borderRadius: '12px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  outline: 'none',
+                  color: '#0f172a',
+                  fontFamily: "'Inter', sans-serif",
+                  background: '#f8fafc',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+                className="search-bar-input"
+              />
+              <Search size={16} color="#6366f1" style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)' }} />
+            </div>
+
+            {/* Dropdown status filter */}
+            <div style={{ position: 'relative', minWidth: '160px' }}>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 36px 10px 16px',
+                  borderRadius: '12px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#475569',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  background: '#ffffff',
+                  fontFamily: "'Inter', sans-serif",
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'none',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+                className="search-filter-select"
+              >
+                <option value="All">All Courses</option>
+                <option value="Not Started">Not Completed</option>
+                <option value="Completed">Completed</option>
+              </select>
+              <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            </div>
+          </div>
+
           {/* Section: Popular Courses */}
           <div id="popular-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -320,10 +358,75 @@ const UserTraining = () => {
             {loading && modules.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontWeight: '600' }}>Loading courses...</div>
             ) : filteredModules.length === 0 ? (
-              <div style={{ background: '#ffffff', padding: '36px', borderRadius: '24px', border: '1px solid #e2e8f0', textAlign: 'center', color: '#64748b' }}>
-                <BookOpen size={40} color="#94a3b8" style={{ marginBottom: '12px' }} />
-                <h4 style={{ margin: '0 0 4px 0', fontWeight: '800', color: '#0f172a' }}>No courses match search</h4>
-                <p style={{ margin: 0, fontSize: '12px' }}>Try resetting filters or typing another query.</p>
+              <div style={{ 
+                background: '#ffffff', 
+                padding: '44px 32px', 
+                borderRadius: '24px', 
+                border: '1px solid #f1f5f9', 
+                textAlign: 'center', 
+                color: '#64748b',
+                boxShadow: '0 8px 30px rgba(99, 102, 241, 0.03)'
+              }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'rgba(99, 102, 241, 0.05)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#6366f1',
+                  marginBottom: '16px'
+                }}>
+                  <BookOpen size={28} />
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', fontWeight: '900', color: '#0f172a', fontSize: '16px', fontFamily: "'Fredoka', sans-serif" }}>No courses match search</h4>
+                <p style={{ margin: '0 0 24px 0', fontSize: '13px', fontFamily: "'Inter', sans-serif", color: '#64748b', lineHeight: 1.5, maxWidth: '380px', marginLeft: 'auto', marginRight: 'auto' }}>
+                  We couldn't find any training modules matching your query. Try clearing your filters or search terms to see all available modules!
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setStatusFilter('All')}
+                    style={{
+                      background: '#f1f5f9',
+                      color: '#475569',
+                      border: 'none',
+                      padding: '8px 20px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      fontFamily: "'Fredoka', sans-serif",
+                      textTransform: 'uppercase',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Reset Filter
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      setSearchQuery('');
+                      setStatusFilter('All');
+                    }}
+                    style={{
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      color: '#6366f1',
+                      border: '1px solid rgba(99, 102, 241, 0.15)',
+                      padding: '8px 20px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      fontFamily: "'Fredoka', sans-serif",
+                      textTransform: 'uppercase',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Browse All Trainings
+                  </motion.button>
+                </div>
               </div>
             ) : (
               <div style={{
@@ -582,42 +685,46 @@ const UserTraining = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           
           {/* Card 1: Unlocks Achievement */}
-          <div style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '24px',
-            padding: '24px',
-            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.01)'
-          }}>
+          <motion.div 
+            whileHover={{ y: -4, boxShadow: '0 12px 30px rgba(99, 102, 241, 0.06)' }}
+            style={{
+              background: '#ffffff',
+              border: '1px solid #f1f5f9',
+              borderRadius: '24px',
+              padding: '24px',
+              boxShadow: '0 8px 25px rgba(99, 102, 241, 0.03)',
+              transition: 'all 0.3s ease'
+            }}
+          >
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Trophy size={16} color="#fbbf24" fill="#fbbf24" /> Unlocks achievement
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Fredoka', sans-serif" }}>
+                <Trophy size={16} color="#fbbf24" fill="#fbbf24" /> Achievements
               </h3>
               {/* Fake Toggle Switch matching reference image */}
-              <div style={{ width: '28px', height: '16px', background: '#3b82f6', borderRadius: '99px', position: 'relative', cursor: 'pointer' }}>
+              <div style={{ width: '28px', height: '16px', background: '#6366f1', borderRadius: '99px', position: 'relative', cursor: 'pointer' }}>
                 <div style={{ width: '10px', height: '10px', background: '#ffffff', borderRadius: '50%', position: 'absolute', right: '3px', top: '3px' }} />
               </div>
             </div>
             
-            <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 20px 0', fontWeight: '500' }}>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 20px 0', fontWeight: '500', fontFamily: "'Inter', sans-serif" }}>
               Goal achieved! successes unlocked.
             </p>
 
             {/* List of achievements mapped from modules */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {modules.map((mod) => {
                 const isCompleted = mod.status === 'completed';
                 
                 return (
-                  <div key={`ach-${mod.id}`} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div key={`ach-${mod.id}`} style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                     {/* Circle Avatar */}
                     <div style={{
                       width: '36px',
                       height: '36px',
                       borderRadius: '50%',
                       background: isCompleted ? '#ecfdf5' : '#f8fafc',
-                      border: `1px dashed ${isCompleted ? '#a7f3d0' : '#cbd5e1'}`,
+                      border: `1.5px dashed ${isCompleted ? '#a7f3d0' : '#cbd5e1'}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -626,16 +733,16 @@ const UserTraining = () => {
                       {isCompleted ? (
                         <Award size={16} color="#10b981" />
                       ) : (
-                        <Lock size={14} color="#94a3b8" />
+                        <Lock size={14} color="#64748b" />
                       )}
                     </div>
 
                     {/* Achievement Details */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h4 style={{ fontSize: '12px', fontWeight: '800', color: isCompleted ? '#0f172a' : '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <h4 style={{ fontSize: '12px', fontWeight: '850', color: isCompleted ? '#0f172a' : '#475569', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'Fredoka', sans-serif" }}>
                         {mod.title} Certification
                       </h4>
-                      <p style={{ fontSize: '10px', color: isCompleted ? '#10b981' : '#94a3b8', margin: '2px 0 0 0', fontWeight: '600' }}>
+                      <p style={{ fontSize: '10px', color: isCompleted ? '#10b981' : '#94a3b8', margin: '2px 0 0 0', fontWeight: '600', fontFamily: "'Inter', sans-serif" }}>
                         {isCompleted ? 'Earned' : 'Locked'}
                       </p>
                     </div>
@@ -644,32 +751,36 @@ const UserTraining = () => {
               })}
 
               {modules.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '12px 0', fontSize: '12px', color: '#94a3b8' }}>
+                <div style={{ textAlign: 'center', padding: '12px 0', fontSize: '12px', color: '#94a3b8', fontFamily: "'Inter', sans-serif" }}>
                   No courses assigned to unlock achievements.
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 2: Recommended Badges (Best Sales) */}
-          <div style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '24px',
-            padding: '24px',
-            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.01)'
-          }}>
+          <motion.div 
+            whileHover={{ y: -4, boxShadow: '0 12px 30px rgba(99, 102, 241, 0.06)' }}
+            style={{
+              background: '#ffffff',
+              border: '1px solid #f1f5f9',
+              borderRadius: '24px',
+              padding: '24px',
+              boxShadow: '0 8px 25px rgba(99, 102, 241, 0.03)',
+              transition: 'all 0.3s ease'
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', margin: 0, fontFamily: "'Fredoka', sans-serif" }}>
                 Recommended Badges
               </h3>
-              <span style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8', cursor: 'pointer' }}>
+              <span style={{ fontSize: '10px', fontWeight: '800', color: '#6366f1', cursor: 'pointer', fontFamily: "'Fredoka', sans-serif", letterSpacing: '0.05em' }}>
                 VIEW ALL
               </span>
             </div>
 
             {/* List of recommended achievements */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {recommendedBadges.map((badge) => {
                 const BadgeIcon = badge.icon;
                 return (
@@ -684,17 +795,18 @@ const UserTraining = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        flexShrink: 0
+                        flexShrink: 0,
+                        border: '1px solid rgba(0,0,0,0.02)'
                       }}>
                         <BadgeIcon size={18} color={badge.color} />
                       </div>
 
                       {/* Badge Name & Rating */}
                       <div style={{ minWidth: 0 }}>
-                        <h4 style={{ fontSize: '12px', fontWeight: '800', color: '#0f172a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <h4 style={{ fontSize: '12px', fontWeight: '850', color: '#0f172a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'Fredoka', sans-serif" }}>
                           {badge.title}
                         </h4>
-                        <p style={{ fontSize: '10px', color: '#fbbf24', margin: '2px 0 0 0', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <p style={{ fontSize: '10px', color: '#fbbf24', margin: '2px 0 0 0', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '2px', fontFamily: "'Inter', sans-serif" }}>
                           ★ <span style={{ color: '#64748b' }}>{badge.rating}</span>
                         </p>
                       </div>
@@ -704,14 +816,17 @@ const UserTraining = () => {
                     <button
                       onClick={() => toast.info(`Badge details: ${badge.description}`)}
                       style={{
-                        padding: '4px 12px',
+                        padding: '6px 16px',
                         borderRadius: '99px',
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
-                        color: '#2563eb',
+                        background: 'rgba(99, 102, 241, 0.06)',
+                        border: '1px solid rgba(99, 102, 241, 0.15)',
+                        color: '#6366f1',
                         fontSize: '11px',
-                        fontWeight: '700',
-                        cursor: 'pointer'
+                        fontWeight: '800',
+                        fontFamily: "'Fredoka', sans-serif",
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
                       }}
                     >
                       View
@@ -720,7 +835,7 @@ const UserTraining = () => {
                 );
               })}
             </div>
-          </div>
+          </motion.div>
 
         </div>
 
@@ -824,21 +939,53 @@ const UserTraining = () => {
 
       {/* Responsive stylesheet injected in layout */}
       <style>{`
-        @media (max-width: 991px) {
+        .search-bar-input {
+          padding-left: 54px !important;
+        }
+        .search-bar-input:focus {
+          border-color: #6366f1 !important;
+          background-color: #ffffff !important;
+          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12) !important;
+        }
+        .search-bar-input:hover {
+          border-color: #94a3b8 !important;
+        }
+        .search-filter-select:focus {
+          border-color: #6366f1 !important;
+          background-color: #ffffff !important;
+          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12) !important;
+        }
+        .search-filter-select:hover {
+          border-color: #94a3b8 !important;
+        }
+
+        @media (max-width: 1024px) {
           .training-main-grid {
             grid-template-columns: 1fr !important;
-            gap: 24px !important;
+            gap: 28px !important;
           }
-          .hero-graphic-mascot {
-            display: none !important;
-          }
+        }
+        @media (max-width: 768px) {
           .training-hero-banner {
+            flex-direction: column !important;
             padding: 32px 24px !important;
-            justify-content: center !important;
+            text-align: center !important;
+            min-height: auto !important;
           }
           .training-hero-text {
             max-width: 100% !important;
             text-align: center !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+          .hero-graphic-mascot {
+            position: relative !important;
+            right: auto !important;
+            bottom: auto !important;
+            margin-top: 24px !important;
+            width: 180px !important;
+            height: 180px !important;
           }
         }
       `}</style>

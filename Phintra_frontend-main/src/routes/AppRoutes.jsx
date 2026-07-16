@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { AdminProtectedRoute, EmployeeProtectedRoute } from './ProtectedRoute';
 
 // Layout Wrappers
@@ -70,7 +70,7 @@ import SupportMessages from '../pages/admin/SupportMessages';
 
 
 const AdminRedirect = () => {
-  const { userRole } = useAppContext();
+  const { userRole } = useAuth();
   if (userRole === 'Security Manager') {
     return <Navigate to="/admin/manager-dashboard" replace />;
   }
@@ -78,7 +78,7 @@ const AdminRedirect = () => {
 };
 
 const AppRoutes = () => {
-  const { isAuthenticated, userRole } = useAppContext();
+  const { adminAuth, employeeAuth, adminRole, isInitializing } = useAuth();
 
   return (
     <BrowserRouter>
@@ -166,21 +166,25 @@ const AppRoutes = () => {
           <Route path="knowledge-hub" element={<KnowledgeHub />} />
           <Route path="messages" element={<MessageWithAdmin />} />
 </Route>
-        {/* 4. Root Catch Redirect */}
+        {/* 4. Root Catch Redirect — role-aware, never blindly redirects */}
         <Route path="/" element={
-          isAuthenticated ? (
-            userRole === 'Security Administrator' ? (
-              <Navigate to="/admin/dashboard" replace />
-            ) : userRole === 'Security Manager' ? (
-              <Navigate to="/admin/manager-dashboard" replace />
-            ) : (
-              <Navigate to="/user/dashboard" replace />
-            )
+          isInitializing ? (
+            // Still validating token — don't redirect yet
+            <div style={{ height: '100vh', backgroundColor: '#0f172a' }} />
+          ) : adminAuth ? (
+            adminRole === 'Security Manager'
+              ? <Navigate to="/admin/manager-dashboard" replace />
+              : <Navigate to="/admin/dashboard" replace />
+          ) : employeeAuth ? (
+            <Navigate to="/user/dashboard" replace />
           ) : (
-            <Navigate to="/user/login" replace />
+            // No valid session — go to admin login (not employee login by default)
+            <Navigate to="/admin/login" replace />
           )
         } />
-        <Route path="*" element={<Navigate to="/user/login" replace />} />
+
+        {/* 5. Unknown paths — redirect to admin login (not employee portal) */}
+        <Route path="*" element={<Navigate to="/admin/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

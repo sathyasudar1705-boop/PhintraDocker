@@ -42,6 +42,12 @@ const CreateCampaign = () => {
   const [campName, setCampName] = useState('');
   const [campDesc, setCampDesc] = useState('');
   
+  // Approved Sender rotation states
+  const [approvedSenders, setApprovedSenders] = useState([]);
+  const [selectedSenderEmail, setSelectedSenderEmail] = useState('');
+  const [selectedSenderDisplayName, setSelectedSenderDisplayName] = useState('');
+  const [randomizeSender, setRandomizeSender] = useState(false);
+
   // Step 2: Select Employees
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
@@ -55,6 +61,36 @@ const CreateCampaign = () => {
   const [testSending, setTestSending] = useState(false);
   const [testSuccessMsg, setTestSuccessMsg] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // Load approved senders on mount
+  useEffect(() => {
+    const fetchApprovedSenders = async () => {
+      try {
+        const response = await api.get('/approved-senders');
+        const activeSenders = response.data.filter(s => s.is_active);
+        setApprovedSenders(activeSenders);
+        if (activeSenders.length > 0) {
+          setSelectedSenderEmail(activeSenders[0].email);
+          setSelectedSenderDisplayName(activeSenders[0].display_name);
+        }
+      } catch (err) {
+        console.error("Failed to load approved senders:", err);
+      }
+    };
+    fetchApprovedSenders();
+  }, []);
+
+  const handleSenderEmailChange = (email) => {
+    setSelectedSenderEmail(email);
+    const matched = approvedSenders.find(s => s.email === email);
+    if (matched) {
+      setSelectedSenderDisplayName(matched.display_name);
+    }
+  };
+
+  const handleSenderDisplayNameChange = (displayName) => {
+    setSelectedSenderDisplayName(displayName);
+  };
 
   // Sync test email field when currentUser is loaded
   useEffect(() => {
@@ -181,7 +217,10 @@ const CreateCampaign = () => {
           campaign_type: 'Awareness Email',
           status: 'Draft',
           template_id: selectedTemplateId,
-          employee_ids: selectedEmployeeIds
+          employee_ids: selectedEmployeeIds,
+          sender_email: randomizeSender ? null : selectedSenderEmail,
+          sender_display_name: randomizeSender ? null : selectedSenderDisplayName,
+          randomize_sender: randomizeSender
         });
         setCreatedCampaignId(response.data.id);
         setCurrentStep(4);
@@ -260,7 +299,7 @@ const CreateCampaign = () => {
       <div className="saas-header">
         <div className="saas-title-group">
           <h1>New Training Campaign</h1>
-          <p>Configure a cybersecurity training campaign to deliver targeted security alerts via Gmail SMTP.</p>
+          <p>Configure a cybersecurity training campaign to deliver targeted security alerts via Outlook SMTP.</p>
         </div>
       </div>
 
@@ -462,6 +501,82 @@ const CreateCampaign = () => {
                         resize: 'vertical'
                       }}
                     />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginTop: '10px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>Approved Sender Configuration</h3>
+                    
+                    {/* Randomize Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input
+                        type="checkbox"
+                        id="randomize_sender"
+                        checked={randomizeSender}
+                        onChange={(e) => setRandomizeSender(e.target.checked)}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="randomize_sender" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)', cursor: 'pointer' }}>
+                        Randomize Sender (Pick random active approved sender at launch)
+                      </label>
+                    </div>
+
+                    {!randomizeSender && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        {/* Sender Email Dropdown */}
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', display: 'block' }}>Sender Email</label>
+                          <select
+                            className="form-control"
+                            value={selectedSenderEmail}
+                            onChange={(e) => handleSenderEmailChange(e.target.value)}
+                            style={{
+                              padding: '12px 16px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-color)',
+                              fontSize: '14px',
+                              width: '100%',
+                              backgroundColor: 'var(--bg-card)',
+                              color: 'var(--text-main)'
+                            }}
+                          >
+                            {approvedSenders.length === 0 ? (
+                              <option value="">No active approved senders</option>
+                            ) : (
+                              approvedSenders.map(s => (
+                                <option key={s.id} value={s.email}>{s.email}</option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+
+                        {/* Sender Display Name Dropdown */}
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', display: 'block' }}>Sender Display Name</label>
+                          <select
+                            className="form-control"
+                            value={selectedSenderDisplayName}
+                            onChange={(e) => handleSenderDisplayNameChange(e.target.value)}
+                            style={{
+                              padding: '12px 16px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-color)',
+                              fontSize: '14px',
+                              width: '100%',
+                              backgroundColor: 'var(--bg-card)',
+                              color: 'var(--text-main)'
+                            }}
+                          >
+                            {approvedSenders.length === 0 ? (
+                              <option value="">No active approved senders</option>
+                            ) : (
+                              approvedSenders.map(s => (
+                                <option key={s.id} value={s.display_name}>{s.display_name}</option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

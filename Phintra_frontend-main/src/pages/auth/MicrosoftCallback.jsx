@@ -1,53 +1,68 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { ShieldAlert, ShieldCheck, Loader2 } from 'lucide-react';
 
+// Prevent React Strict Mode double-mount calling the token exchange twice
+let hasExchangedCodeGlobal = false;
+
 const MicrosoftCallback = () => {
-  const { microsoftLogin } = useAppContext();
+  const { microsoftLogin } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState('initializing'); // initializing, exchanging, syncing, success, error
   const [errorMessage, setErrorMessage] = useState('');
+  const [portalType, setPortalType] = useState('employee');
+
+  // Multi-request prevention flag
+  const hasProcessedCallback = useRef(false);
 
   useEffect(() => {
     const completeSSO = async () => {
-      // 1. Parse query params
+      // 1. Double request check guard using both Ref and Global Module-level variables
+      if (hasProcessedCallback.current || hasExchangedCodeGlobal) {
+        return;
+      }
+      hasProcessedCallback.current = true;
+      hasExchangedCodeGlobal = true;
+
+      // 2. Parse query params
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
       const state = params.get('state');
       const error = params.get('error');
       const errorDescription = params.get('error_description');
 
-      // Clear window history to remove code from address bar
+      // Clear code/params from URL address bar immediately
       window.history.replaceState({}, document.title, window.location.pathname);
 
       if (error || errorDescription) {
         setStatus('error');
         setErrorMessage(errorDescription || error || 'Microsoft authentication failed.');
+        hasExchangedCodeGlobal = false; // Reset on failure to allow retry
         return;
       }
 
       if (!code) {
         setStatus('error');
         setErrorMessage('Authorization code is missing from Microsoft response.');
+        hasExchangedCodeGlobal = false; // Reset on failure
         return;
       }
 
-      // 2. Retrieve verifier and state from sessionStorage
+      // 3. Retrieve verifier, state and portalType from sessionStorage
       const verifier = sessionStorage.getItem('pkce_code_verifier');
       const savedState = sessionStorage.getItem('pkce_state');
-      const portalType = sessionStorage.getItem('sso_portal_type') || 'employee';
-
-      // Clean up PKCE session storage
-      sessionStorage.removeItem('pkce_code_verifier');
-      sessionStorage.removeItem('pkce_state');
-      sessionStorage.removeItem('sso_portal_type');
+      const portalTypeVal = sessionStorage.getItem('sso_portal_type') || 
+        (window.location.hash.includes('admin') || window.location.search.includes('admin') ? 'admin' : 'employee');
+      
+      setPortalType(portalTypeVal);
 
       if (!verifier) {
         setStatus('error');
         setErrorMessage('Authentication session expired or code verifier missing. Please try signing in again.');
+        hasExchangedCodeGlobal = false; // Reset on failure
         return;
       }
 
@@ -91,30 +106,31 @@ const MicrosoftCallback = () => {
           throw new Error('Did not receive both access and ID tokens from Microsoft.');
         }
 
+        // Exchange was successful, clean up PKCE verifiers to prevent replay attacks
+        sessionStorage.removeItem('pkce_code_verifier');
+        sessionStorage.removeItem('pkce_state');
+        sessionStorage.removeItem('sso_portal_type');
+
         setStatus('syncing');
 
-        // 5. Send tokens to backend for user validation and JWT session generation
-        const loginResult = await microsoftLogin(access_token, id_token, portalType);
+        // 6. Complete profile check & login in AuthContext
+        const loginResult = await microsoftLogin(access_token, id_token, portalTypeVal);
 
         if (loginResult.success) {
           setStatus('success');
-          // Navigate to correct dashboard path
-          setTimeout(() => {
-            let targetPath = loginResult.redirect_path;
-            if (portalType === 'employee' || targetPath === '/employee/dashboard' || targetPath === '/user/dashboard') {
-              targetPath = '/user/dashboard';
-            }
-            navigate(targetPath);
-          }, 1200);
+          // Navigate to correct dashboard safely using replace: true immediately
+          navigate(loginResult.redirect_path, { replace: true });
         } else {
           setStatus('error');
           setErrorMessage(loginResult.message || 'Verification failed. Your account may not be registered.');
+          hasExchangedCodeGlobal = false;
         }
       } catch (err) {
         console.error('SSO Exchange error details:', err);
         setStatus('error');
         const errDetail = err.response?.data?.detail || err.message || 'An error occurred during Microsoft sign-in.';
         setErrorMessage(errDetail);
+        hasExchangedCodeGlobal = false;
       }
     };
 

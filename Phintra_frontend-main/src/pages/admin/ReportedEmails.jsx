@@ -27,7 +27,7 @@ const AdminReportedEmails = () => {
     const employeeName = rep.employeeName || "Unknown Employee";
     const senderEmail = rep.senderEmail || "unknown@sender.com";
     const subject = rep.subject || "No Subject";
-    const campaignName = rep.campaignName || "External Gmail Report";
+    const campaignName = rep.campaignName || "External Outlook Report";
     const id = rep.id || "";
 
     const matchesSearch = employeeName.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -225,7 +225,7 @@ const AdminReportedEmails = () => {
                   <td style={{ fontWeight: '500' }}>{report.subject}</td>
                   <td style={{ color: 'var(--text-light)' }}>{report.senderEmail}</td>
                   <td style={{ fontWeight: '600', color: 'var(--text-main)' }}>{report.employeeName || "Unknown Employee"}</td>
-                  <td style={{ color: 'var(--text-light)' }}>{report.campaignName || "External Gmail Report"}</td>
+                  <td style={{ color: 'var(--text-light)' }}>{report.campaignName || "External Outlook Report"}</td>
                   <td>
                     <span className={`badge badge-${(report.riskScore || 0) > 70 ? 'high' : (report.riskScore || 0) > 35 ? 'medium' : 'low'}`}>
                       {report.riskScore || 0}
@@ -275,7 +275,7 @@ const AdminReportedEmails = () => {
                   <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Report by {selectedReport.employeeName || "Unknown Employee"}</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', fontSize: '12px', color: 'var(--text-light)', gap: '2px', marginTop: '4px' }}>
                     <span>Flagged on: {selectedReport.createdAt ? selectedReport.createdAt.split('T')[0] : selectedReport.reportedDate}</span>
-                    <span>Campaign: {selectedReport.campaignName || "External Gmail Report"}</span>
+                    <span>Campaign: {selectedReport.campaignName || "External Outlook Report"}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>

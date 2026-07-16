@@ -178,16 +178,9 @@ export const initialQuizzes = [
 ];
 
 export const initialLeaderboard = [
-  { rank: 1, name: "James Park", department: "Engineering", securityScore: 96, badges: ["Security Champion", "Zero Click", "Perfect Month"] },
-  { rank: 2, name: "Sarah Mitchell", department: "Finance", securityScore: 94, badges: ["Zero Click", "Top Reporter", "Perfect Month"] },
-  { rank: 3, name: "Lisa Chen", department: "Engineering", securityScore: 93, badges: ["Security Champion", "Perfect Month"] },
-  { rank: 4, name: "Emma Wilson", department: "Finance", securityScore: 91, badges: ["Top Reporter", "Zero Click"] },
-  { rank: 5, name: "Ryan Foster", department: "Operations", securityScore: 89, badges: ["Zero Click", "Security Champion"] },
-  { rank: 6, name: "Alex Chen", department: "Engineering", securityScore: 88, badges: ["Quick Learner", "Top Reporter"] },
-  { rank: 7, name: "Chris Taylor", department: "Sales", securityScore: 75, badges: ["Top Reporter"] },
-  { rank: 8, name: "Mark Davis", department: "Sales", securityScore: 71, badges: ["Quick Learner"] },
-  { rank: 9, name: "David Kim", department: "HR", securityScore: 68, badges: ["Quick Learner"] },
-  { rank: 10, name: "Nina Patel", department: "HR", securityScore: 63, badges: [] }
+  { rank: 1, name: "Saravana Employee", department: "Information Technology", securityScore: 100, badges: ["Security Champion"] },
+  { rank: 2, name: "Hari Employee", department: "Information Technology", securityScore: 100, badges: ["Security Champion"] },
+  { rank: 3, name: "Ramya Employee", department: "Information Technology", securityScore: 100, badges: ["Security Champion"] }
 ];
 
 export const initialSimulations = [
